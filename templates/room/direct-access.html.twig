@@ -1,0 +1,46 @@
+{% extends 'base.html.twig' %}
+
+{% block title %}Access Room - {{ parent() }}{% endblock %}
+
+{% block body %}
+<div class="row justify-content-center">
+    <div class="col-md-8">
+        <div class="card">
+            <div class="card-header">
+                <h1 class="h3 mb-0">Enter {{ room.name }}</h1>
+            </div>
+            <div class="card-body text-center">
+                <p class="mb-4">Choose how you want to access this room:</p>
+                
+                <div class="row">
+                    <div class="col-md-6">
+                        <div class="card mb-3">
+                            <div class="card-body">
+                                <h5 class="card-title">Standard Access</h5>
+                                <p class="card-text">Check your camera and microphone first, then join the room.</p>
+                                <a href="{{ path('app_room_permission_check', {'slug': room.slug}) }}" class="btn btn-primary">Check & Join</a>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-6">
+                        <div class="card mb-3">
+                            <div class="card-body">
+                                <h5 class="card-title">Direct Access</h5>
+                                <p class="card-text">Skip permission check and go directly to the room.</p>
+                                <form method="get" action="{{ path('app_room_show', {'slug': room.slug}) }}">
+                                    <input type="hidden" name="skip_check" value="true">
+                                    <button type="submit" class="btn btn-outline-primary">Skip & Join</button>
+                                </form>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="alert alert-info mt-4">
+                    <p><i class="fas fa-info-circle"></i> If you're having trouble with camera permissions, try the Direct Access option.</p>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

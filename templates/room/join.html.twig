@@ -1,0 +1,32 @@
+{% extends 'base.html.twig' %}
+
+{% block title %}Join Room: {{ room.name }} - {{ parent() }}{% endblock %}
+
+{% block body %}
+<div class="row justify-content-center">
+    <div class="col-md-6">
+        <div class="card">
+            <div class="card-header">
+                <h1 class="h3 mb-0">Join Room: {{ room.name }}</h1>
+            </div>
+            <div class="card-body">
+                <p>This is a private room created by <strong>{{ room.owner.username }}</strong>.</p>
+                
+                {% if error is defined and error %}
+                    <div class="alert alert-danger">{{ error }}</div>
+                {% endif %}
+
+                <form method="post">
+                    <div class="mb-3">
+                        <label for="password" class="form-label">Room Password</label>
+                        <input type="password" id="password" name="password" class="form-control" required>
+                    </div>
+
+                    <button type="submit" class="btn btn-primary">Join Room</button>
+                    <a href="{{ path('app_home') }}" class="btn btn-link">Cancel</a>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

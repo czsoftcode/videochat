@@ -1,0 +1,10 @@
+twig:
+    file_name_pattern: '*.twig'
+    default_path: '%kernel.project_dir%/templates'
+    form_themes: ['bootstrap_5_layout.html.twig']
+    globals:
+        mercure_public_url: '%mercure_public_url%'
+
+when@test:
+    twig:
+        strict_variables: true

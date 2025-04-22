@@ -1,0 +1,137 @@
+{% extends 'base.html.twig' %}
+
+{% block title %}Check Camera Permissions - {{ parent() }}{% endblock %}
+
+{% block body %}
+<div class="row justify-content-center">
+    <div class="col-md-8">
+        <div class="card">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <h1 class="h3 mb-0">Camera & Microphone Access</h1>
+                <a href="{{ path('app_room_show', {'slug': room.slug, 'skip_check': 'true'}) }}" class="btn btn-sm btn-outline-secondary">Skip Check</a>
+            </div>
+            <div class="card-body">
+                <p>Before entering the room, we need to ensure your camera and microphone are working properly.</p>
+                
+                <div class="alert alert-info">
+                    <p><i class="fas fa-info-circle"></i> You'll need to allow access when prompted by your browser.</p>
+                </div>
+                
+                <div class="mb-4">
+                    <h5>Camera Preview:</h5>
+                    <div class="bg-dark p-2 rounded">
+                        <video id="camera-preview" class="w-100" style="max-height: 300px;" autoplay muted playsinline></video>
+                    </div>
+                </div>
+                
+                <div class="mb-4">
+                    <h5>Microphone:</h5>
+                    <div class="progress">
+                        <div id="audio-meter" class="progress-bar bg-success" role="progressbar" style="width: 0%"></div>
+                    </div>
+                </div>
+                
+                <div id="permission-status" class="alert alert-warning">
+                    <i class="fas fa-spinner fa-spin"></i> Checking permissions...
+                </div>
+                
+                <div class="text-center mt-4">
+                    <a href="{{ path('app_room_show', {'slug': room.slug, 'skip_check': 'true'}) }}" class="btn btn-primary" id="continue-btn" style="display: none;">Continue to Room</a>
+                    <form method="get" action="{{ path('app_room_show', {'slug': room.slug}) }}" style="display: inline;">
+                        <input type="hidden" name="skip_check" value="true">
+                        <button type="submit" class="btn btn-outline-primary ms-2" id="continue-btn-form" style="display: none;">Alternative Method</button>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        const videoElement = document.getElementById('camera-preview');
+        const audioMeter = document.getElementById('audio-meter');
+        const permissionStatus = document.getElementById('permission-status');
+        const continueBtn = document.getElementById('continue-btn');
+        
+        // Try to access camera and microphone
+        navigator.mediaDevices.getUserMedia({ video: true, audio: true })
+            .then(function(stream) {
+                // Set video source to the stream
+                videoElement.srcObject = stream;
+                
+                // Set up audio meter
+                const audioContext = new (window.AudioContext || window.webkitAudioContext)();
+                const analyser = audioContext.createAnalyser();
+                const microphone = audioContext.createMediaStreamSource(stream);
+                const javascriptNode = audioContext.createScriptProcessor(2048, 1, 1);
+                
+                analyser.smoothingTimeConstant = 0.8;
+                analyser.fftSize = 1024;
+                
+                microphone.connect(analyser);
+                analyser.connect(javascriptNode);
+                javascriptNode.connect(audioContext.destination);
+                
+                javascriptNode.onaudioprocess = function() {
+                    const array = new Uint8Array(analyser.frequencyBinCount);
+                    analyser.getByteFrequencyData(array);
+                    let values = 0;
+                    
+                    const length = array.length;
+                    for (let i = 0; i < length; i++) {
+                        values += (array[i]);
+                    }
+                    
+                    const average = values / length;
+                    audioMeter.style.width = Math.min(100, average * 2) + '%';
+                };
+                
+                // Update permission status
+                permissionStatus.className = 'alert alert-success';
+                permissionStatus.innerHTML = '<i class="fas fa-check-circle"></i> Camera and microphone are working properly!';
+                
+                // Show continue buttons
+                continueBtn.style.display = 'inline-block';
+                document.getElementById('continue-btn-form').style.display = 'inline-block';
+                
+                // Function to clean up when leaving the page
+                window.addEventListener('beforeunload', function() {
+                    stream.getTracks().forEach(track => track.stop());
+                    if (audioContext.state !== 'closed') {
+                        audioContext.close();
+                    }
+                });
+            })
+            .catch(function(error) {
+                console.error('Error accessing media devices:', error);
+                
+                permissionStatus.className = 'alert alert-danger';
+                
+                if (error.name === 'NotAllowedError' || error.name === 'PermissionDeniedError') {
+                    permissionStatus.innerHTML = `
+                        <i class="fas fa-exclamation-triangle"></i> 
+                        <strong>Permission Denied</strong>
+                        <p>You need to allow access to your camera and microphone to use video chat.</p>
+                        <p>Please check your browser settings and ensure that ${window.location.origin} has permission to use your camera and microphone.</p>
+                        <button class="btn btn-primary mt-2" onclick="window.location.reload()">Try Again</button>
+                    `;
+                } else if (error.name === 'NotFoundError' || error.name === 'DevicesNotFoundError') {
+                    permissionStatus.innerHTML = `
+                        <i class="fas fa-exclamation-triangle"></i> 
+                        <strong>No Camera or Microphone Found</strong>
+                        <p>We couldn't detect a camera or microphone on your device.</p>
+                        <p>Please ensure you have a working camera and microphone connected to your device.</p>
+                    `;
+                } else {
+                    permissionStatus.innerHTML = `
+                        <i class="fas fa-exclamation-triangle"></i> 
+                        <strong>Error</strong>
+                        <p>An error occurred while accessing your camera and microphone: ${error.message}</p>
+                        <button class="btn btn-primary mt-2" onclick="window.location.reload()">Try Again</button>
+                    `;
+                }
+            });
+    });
+</script>
+{% endblock %}

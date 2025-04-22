@@ -1,0 +1,121 @@
+{% extends 'base.html.twig' %}
+
+{% block title %}Invite to Room: {{ room.name }} - {{ parent() }}{% endblock %}
+
+{% block body %}
+<div class="row mb-4">
+    <div class="col-md-8">
+        <h1>Invite to Room: {{ room.name }}</h1>
+        <p>
+            {% if room.isPrivate %}
+                <span class="badge bg-warning text-dark">Private Room</span>
+            {% else %}
+                <span class="badge bg-success">Public Room</span>
+            {% endif %}
+        </p>
+    </div>
+    <div class="col-md-4 text-end">
+        <a href="{{ path('app_room_show', {slug: room.slug}) }}" class="btn btn-outline-primary">Back to Room</a>
+    </div>
+</div>
+
+<div class="row">
+    <div class="col-md-6">
+        <div class="card mb-4">
+            <div class="card-header">
+                <h5 class="mb-0">Invite by Email</h5>
+            </div>
+            <div class="card-body">
+                {% if success is defined and success %}
+                    <div class="alert alert-success">{{ success }}</div>
+                {% endif %}
+                
+                {% if error is defined and error %}
+                    <div class="alert alert-danger">{{ error }}</div>
+                {% endif %}
+                
+                <form method="post">
+                    <div class="mb-3">
+                        <label for="email" class="form-label">User Email</label>
+                        <input type="email" id="email" name="email" class="form-control" required>
+                        <div class="form-text">Enter the email of a registered user you want to invite.</div>
+                    </div>
+                    <button type="submit" class="btn btn-primary">Send Invitation</button>
+                </form>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-md-6">
+        <div class="card mb-4">
+            <div class="card-header">
+                <h5 class="mb-0">Share Link</h5>
+            </div>
+            <div class="card-body">
+                <p>Share this link with others to invite them to join this room:</p>
+                
+                <div class="input-group mb-3">
+                    <input type="text" class="form-control" id="share-link" value="{{ shareableLink }}" readonly>
+                    <button class="btn btn-outline-secondary" type="button" id="copy-link-btn">Copy</button>
+                </div>
+                
+                {% if room.isPrivate and room.password %}
+                    <div class="alert alert-warning">
+                        <strong>Password Required:</strong> 
+                        <p class="mb-0">This is a private room. Share this password with invited users: <strong>{{ room.password }}</strong></p>
+                    </div>
+                {% endif %}
+            </div>
+        </div>
+        
+        <div class="card">
+            <div class="card-header">
+                <h5 class="mb-0">Current Participants</h5>
+            </div>
+            <div class="card-body">
+                <ul class="list-group">
+                    {% for participant in room.participants %}
+                        <li class="list-group-item d-flex justify-content-between align-items-center">
+                            {{ participant.username }}
+                            {% if participant == room.owner %}
+                                <span class="badge bg-primary rounded-pill">Owner</span>
+                            {% endif %}
+                        </li>
+                    {% endfor %}
+                </ul>
+                
+                <div class="mt-3">
+                    <a href="{{ path('app_room_participants', {slug: room.slug}) }}" class="btn btn-sm btn-outline-secondary">Manage Participants</a>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+{% block javascripts %}
+{{ parent() }}
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        const copyLinkBtn = document.getElementById('copy-link-btn');
+        const shareLinkInput = document.getElementById('share-link');
+        
+        copyLinkBtn.addEventListener('click', function() {
+            shareLinkInput.select();
+            document.execCommand('copy');
+            
+            // Change button text temporarily
+            const originalText = copyLinkBtn.textContent;
+            copyLinkBtn.textContent = 'Copied!';
+            copyLinkBtn.classList.add('btn-success');
+            copyLinkBtn.classList.remove('btn-outline-secondary');
+            
+            setTimeout(function() {
+                copyLinkBtn.textContent = originalText;
+                copyLinkBtn.classList.remove('btn-success');
+                copyLinkBtn.classList.add('btn-outline-secondary');
+            }, 2000);
+        });
+    });
+</script>
+{% endblock %}
+{% endblock %}

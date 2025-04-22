@@ -1,0 +1,365 @@
+/**
+ * VideoChat WebRTC functionality
+ */
+
+// PeerJS configuration
+const peerConfig = {
+    debug: 2,
+    // Add STUN/TURN servers for production
+    // config: {
+    //     iceServers: [
+    //         { urls: 'stun:stun.l.google.com:19302' },
+    //         { 
+    //             urls: 'turn:your-turn-server.com:3478',
+    //             username: 'username',
+    //             credential: 'credential'
+    //         }
+    //     ]
+    // }
+};
+
+class VideoChat {
+    constructor(roomId, userId, username) {
+        this.roomId = roomId;
+        this.userId = userId;
+        this.username = username;
+        this.peerId = `${userId}_${Date.now()}`;
+        this.localStream = null;
+        this.peers = {};
+        this.peer = null;
+        this.videoEnabled = true;
+        this.audioEnabled = true;
+        this.eventSource = null;
+    }
+
+    /**
+     * Initialize WebRTC connection
+     */
+    async init() {
+        try {
+            // Get local media stream
+            this.localStream = await navigator.mediaDevices.getUserMedia({
+                audio: true,
+                video: true
+            });
+
+            // Display local video
+            const localVideo = document.getElementById('local-video');
+            if (localVideo) {
+                localVideo.srcObject = this.localStream;
+            }
+
+            // Initialize PeerJS
+            this.peer = new Peer(this.peerId, peerConfig);
+
+            // Set up PeerJS event handlers
+            this.setupPeerEvents();
+
+            // Set up Mercure for signaling
+            this.setupMercure();
+
+            return true;
+        } catch (error) {
+            console.error('Error initializing WebRTC:', error);
+            return false;
+        }
+    }
+
+    /**
+     * Set up PeerJS event handlers
+     */
+    setupPeerEvents() {
+        // On PeerJS connection open
+        this.peer.on('open', (id) => {
+            console.log('My peer ID is:', id);
+            this.announcePresence();
+        });
+
+        // Handle incoming calls
+        this.peer.on('call', (call) => {
+            // Answer the call with our stream
+            call.answer(this.localStream);
+
+            // Handle stream from the remote peer
+            call.on('stream', (remoteStream) => {
+                if (!this.peers[call.peer]) {
+                    this.addVideoStream(call.peer, remoteStream);
+                    this.peers[call.peer] = call;
+                }
+            });
+
+            // Handle call close
+            call.on('close', () => {
+                this.removeVideoStream(call.peer);
+                delete this.peers[call.peer];
+            });
+        });
+
+        // Handle PeerJS errors
+        this.peer.on('error', (err) => {
+            console.error('PeerJS error:', err);
+        });
+    }
+
+    /**
+     * Set up Mercure event source for signaling
+     */
+    setupMercure() {
+        // Get the Mercure URL from the data attribute
+        const mercureUrl = document.querySelector('meta[name="mercure-url"]').getAttribute('content');
+        
+        if (!mercureUrl) {
+            console.error('Mercure URL not found');
+            return;
+        }
+
+        // Create EventSource for the room
+        this.eventSource = new EventSource(`${mercureUrl}?topic=room/${this.roomId}`);
+
+        // Handle incoming messages
+        this.eventSource.onmessage = (event) => {
+            const data = JSON.parse(event.data);
+            console.log('Mercure event:', data);
+
+            switch (data.type) {
+                case 'user_present':
+                case 'user_joined':
+                    if (data.user.id !== this.userId) {
+                        this.callParticipant(data.user.id);
+                    }
+                    break;
+
+                case 'user_left':
+                    if (data.user.id !== this.userId) {
+                        Object.entries(this.peers).forEach(([peerId, call]) => {
+                            if (peerId.startsWith(data.user.id + '_')) {
+                                call.close();
+                                delete this.peers[peerId];
+                            }
+                        });
+                    }
+                    break;
+
+                case 'signal':
+                    // This is handled by PeerJS internally
+                    break;
+            }
+        };
+
+        // Handle EventSource errors
+        this.eventSource.onerror = (error) => {
+            console.error('Mercure error:', error);
+        };
+    }
+
+    /**
+     * Announce presence to the room
+     */
+    announcePresence() {
+        fetch(`/api/rooms/${this.roomId}/announce`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            }
+        })
+        .then(response => response.json())
+        .then(data => console.log('Announced presence:', data))
+        .catch(error => console.error('Error announcing presence:', error));
+    }
+
+    /**
+     * Call a new participant
+     */
+    callParticipant(userId) {
+        const remotePeerId = `${userId}_${Date.now()}`;
+        const call = this.peer.call(remotePeerId, this.localStream);
+
+        call.on('stream', (remoteStream) => {
+            if (!this.peers[call.peer]) {
+                this.addVideoStream(call.peer, remoteStream);
+                this.peers[call.peer] = call;
+            }
+        });
+
+        call.on('close', () => {
+            this.removeVideoStream(call.peer);
+            delete this.peers[call.peer];
+        });
+
+        return call;
+    }
+
+    /**
+     * Add a video stream to the UI
+     */
+    addVideoStream(peerId, stream) {
+        const remoteVideos = document.getElementById('remote-videos');
+        if (!remoteVideos) return;
+
+        // Create video container
+        const videoContainer = document.createElement('div');
+        videoContainer.className = 'remote-video-wrapper p-2';
+        videoContainer.style.width = '50%';
+        videoContainer.style.height = '300px';
+        videoContainer.id = `container-${peerId}`;
+
+        // Create video element
+        const video = document.createElement('video');
+        video.srcObject = stream;
+        video.autoplay = true;
+        video.playsInline = true;
+        video.className = 'w-100 h-100 rounded bg-dark';
+        video.id = `video-${peerId}`;
+
+        // Create username label
+        const usernameLabel = document.createElement('div');
+        usernameLabel.className = 'position-absolute bottom-0 start-0 p-2 text-light bg-dark bg-opacity-50 rounded';
+        usernameLabel.textContent = 'Participant';
+
+        // Add elements to container
+        videoContainer.appendChild(video);
+        videoContainer.appendChild(usernameLabel);
+        remoteVideos.appendChild(videoContainer);
+
+        // Update participant count
+        this.updateParticipantCount();
+    }
+
+    /**
+     * Remove a video stream from the UI
+     */
+    removeVideoStream(peerId) {
+        const videoContainer = document.getElementById(`container-${peerId}`);
+        if (videoContainer) {
+            videoContainer.remove();
+        }
+
+        // Update participant count
+        this.updateParticipantCount();
+    }
+
+    /**
+     * Update the participant count
+     */
+    updateParticipantCount() {
+        const count = Object.keys(this.peers).length + 1; // +1 for local user
+        const participantCount = document.getElementById('participant-count');
+        if (participantCount) {
+            participantCount.textContent = count;
+        }
+    }
+
+    /**
+     * Toggle microphone
+     */
+    toggleMicrophone() {
+        this.audioEnabled = !this.audioEnabled;
+        this.localStream.getAudioTracks().forEach(track => {
+            track.enabled = this.audioEnabled;
+        });
+        return this.audioEnabled;
+    }
+
+    /**
+     * Toggle camera
+     */
+    toggleCamera() {
+        this.videoEnabled = !this.videoEnabled;
+        this.localStream.getVideoTracks().forEach(track => {
+            track.enabled = this.videoEnabled;
+        });
+        return this.videoEnabled;
+    }
+
+    /**
+     * Share screen
+     */
+    async shareScreen() {
+        try {
+            const screenStream = await navigator.mediaDevices.getDisplayMedia({
+                video: true
+            });
+
+            // Get screen video track
+            const videoTrack = screenStream.getVideoTracks()[0];
+
+            // Replace video track in all peer connections
+            Object.values(this.peers).forEach(call => {
+                const senders = call.peerConnection.getSenders();
+                const sender = senders.find(s => s.track && s.track.kind === 'video');
+                if (sender) {
+                    sender.replaceTrack(videoTrack);
+                }
+            });
+
+            // Replace local video display
+            const oldStream = document.getElementById('local-video').srcObject;
+            const oldAudioTrack = oldStream.getAudioTracks()[0];
+            if (oldAudioTrack) {
+                screenStream.addTrack(oldAudioTrack);
+            }
+            document.getElementById('local-video').srcObject = screenStream;
+
+            // Handle end of screen sharing
+            videoTrack.onended = () => {
+                // Restore camera as video source
+                this.localStream.getVideoTracks().forEach(track => {
+                    Object.values(this.peers).forEach(call => {
+                        const senders = call.peerConnection.getSenders();
+                        const sender = senders.find(s => s.track && s.track.kind === 'video');
+                        if (sender) {
+                            sender.replaceTrack(track);
+                        }
+                    });
+                });
+
+                // Restore local video display
+                document.getElementById('local-video').srcObject = this.localStream;
+            };
+
+            return true;
+        } catch (error) {
+            console.error('Error sharing screen:', error);
+            return false;
+        }
+    }
+
+    /**
+     * Leave the room
+     */
+    leaveRoom() {
+        // Close all peer connections
+        Object.values(this.peers).forEach(call => call.close());
+
+        // Close local stream
+        if (this.localStream) {
+            this.localStream.getTracks().forEach(track => track.stop());
+        }
+
+        // Close PeerJS connection
+        if (this.peer) {
+            this.peer.destroy();
+        }
+
+        // Close Mercure connection
+        if (this.eventSource) {
+            this.eventSource.close();
+        }
+
+        // Notify server that we're leaving
+        return fetch(`/api/rooms/${this.roomId}/leave`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            }
+        })
+        .then(response => response.json())
+        .catch(error => {
+            console.error('Error leaving room:', error);
+            return { error: error.message };
+        });
+    }
+}
+
+// Export the VideoChat class
+window.VideoChat = VideoChat;
