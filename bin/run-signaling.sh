@@ -6,10 +6,10 @@ echo "================================================"
 
 # Check if Node.js is installed
 if command -v node &> /dev/null; then
-    # Check if ws module is installed
-    if ! npm list -g ws | grep -q ws; then
-        echo "Installing WebSocket module..."
-        npm install -g ws
+    # Check if ws module is installed locally in the project
+    if [ ! -d "node_modules/ws" ]; then
+        echo "Installing WebSocket module locally..."
+        npm install ws
     fi
     
     echo "Starting WebSocket signaling server..."
