@@ -22,9 +22,13 @@ security:
                 failure_handler: lexik_jwt_authentication.handler.authentication_failure
         
         api:
-            pattern: ^/api
+            pattern: ^/api/login
             stateless: true
             jwt: ~
+        
+        web_api:
+            pattern: ^/api
+            lazy: true
             
         main:
             lazy: true
@@ -40,7 +44,7 @@ security:
     access_control:
         - { path: ^/api/login, roles: PUBLIC_ACCESS }
         - { path: ^/api/register, roles: PUBLIC_ACCESS }
-        - { path: ^/api, roles: IS_AUTHENTICATED_FULLY }
+        - { path: ^/api, roles: ROLE_USER }
         - { path: ^/room/create, roles: ROLE_USER }
         - { path: ^/room/\d+/join, roles: ROLE_USER }
         - { path: ^/login, roles: PUBLIC_ACCESS }

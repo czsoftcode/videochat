@@ -17,13 +17,16 @@ class VideoController extends AbstractController
 {
     private $roomRepository;
     private $hub;
+    private $entityManager;
 
     public function __construct(
         RoomRepository $roomRepository,
-        HubInterface $hub
+        HubInterface $hub,
+        \Doctrine\ORM\EntityManagerInterface $entityManager
     ) {
         $this->roomRepository = $roomRepository;
         $this->hub = $hub;
+        $this->entityManager = $entityManager;
     }
 
     #[Route('/api/rooms/{id}/signal', name: 'api_room_signal', methods: ['POST'])]
