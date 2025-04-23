@@ -15,7 +15,21 @@ const peerConfig = {
             { urls: 'stun:stun.voiparound.com' },
             // Přidány veřejné STUN servery pro lepší průchod NAT
             { urls: 'stun:global.stun.twilio.com:3478' }
-            
+            {
+                urls: 'turn:openrelay.metered.ca:80',
+                username: 'openrelayproject',
+                credential: 'openrelayproject'
+            },
+            {
+                urls: 'turn:openrelay.metered.ca:443',
+                username: 'openrelayproject',
+                credential: 'openrelayproject'
+            },
+            {
+                urls: 'turn:openrelay.metered.ca:443?transport=tcp',
+                username: 'openrelayproject',
+                credential: 'openrelayproject'
+            }
             // Poznámka: V produkčním prostředí byste měli přidat i TURN servery
             // pro případy, kdy STUN nestačí. TURN servery obvykle vyžadují autentizaci.
             /* Příklad TURN serveru:
@@ -677,12 +691,12 @@ class VideoChat {
     callParticipant(userId) {
         // Standardní formát PeerID je userId_timestamp
         // Pokusíme se o více možností formátu PeerID
-        const possiblePeerIds = [
-            userId + '_' + Date.now(),   // Nejnovější formát
-            userId,                      // Jednoduchý formát
-            userId + '_'                 // Částečný formát
-        ];
-        
+        // const possiblePeerIds = [
+        //    userId + '_' + Date.now(),   // Nejnovější formát
+        //    userId,                      // Jednoduchý formát
+        //    userId + '_'                 // Částečný formát
+        // ];
+        const peerId = `${userId}_${Date.now()}`;
         console.log(`Attempting to call user ${userId} with possible IDs:`, possiblePeerIds);
         
         let callAttempted = false;
