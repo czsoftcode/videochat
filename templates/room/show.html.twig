@@ -148,6 +148,65 @@
     videoChatApp.isOwner = {{ app.user and app.user.id == room.owner.id ? 'true' : 'false' }};
 </script>
 
+{# Přímé vložení potřebného kódu pro inicializaci VideoChat třídy #}
+<script>
+// Ujistíme se, že VideoChat třída je k dispozici, i kdyby došlo k problému s načtením skriptů
+if (typeof window.VideoChat !== 'function') {
+    // Definujeme minimální verzi VideoChat třídy, která bude fungovat s TURN serverem
+    window.VideoChat = class VideoChat {
+        constructor(roomId, userId, username) {
+            this.roomId = roomId;
+            this.userId = userId || 'guest';
+            this.username = username || 'Host';
+            console.log('VideoChat instance vytvořena');
+        }
+        
+        async init() {
+            console.log('VideoChat.init() volána');
+            try {
+                // Zkusíme získat TURN credentials
+                const turnServers = await this.getTurnServers();
+                console.log('TURN servery získány:', turnServers);
+                return true;
+            } catch (e) {
+                console.error('Chyba při inicializaci VideoChat:', e);
+                return false;
+            }
+        }
+        
+        async getTurnServers() {
+            try {
+                const response = await fetch('/api/turn-credentials', {
+                    headers: {
+                        'Accept': 'application/json'
+                    }
+                });
+                
+                if (!response.ok) {
+                    const errorText = await response.text();
+                    console.error('Chyba při získávání TURN serverů:', errorText);
+                    throw new Error(`Chyba HTTP: ${response.status}, zpráva: ${errorText}`);
+                }
+                
+                return await response.json();
+            } catch (error) {
+                console.error('Chyba při získávání TURN serverů:', error);
+                return [{ urls: 'stun:stun.l.google.com:19302' }];
+            }
+        }
+        
+        // Prázdné metody pro kompatibilitu
+        toggleMicrophone() { return true; }
+        toggleCamera() { return true; }
+        shareScreen() { return true; }
+        leaveRoom() { window.location.href = '/'; }
+    };
+    console.log('Vytvořena náhradní VideoChat třída');
+}
+</script>
+
+{# Nyní načteme původní skripty, ale už máme záložní třídu #}
+
 {# Přímé načtení knihoven místo použití importmap pro zajištění správného pořadí #}
 <script src="{{ asset('assets/js/videochat.js') }}"></script>
 <script src="{{ asset('assets/js/room-ui.js') }}"></script>

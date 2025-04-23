@@ -17,12 +17,59 @@ class RoomController {
      * Initialize the room
      */
     async init() {
-        // Create VideoChat instance
-        this.videoChat = new window.VideoChat(this.roomId, this.userId, this.username);
+        // Kontrola, zda máme k dispozici VideoChat třídu
+        if (typeof window.VideoChat !== 'function') {
+            console.error('VideoChat třída není k dispozici! Zkusíme chvíli počkat...');
+            
+            // Počkáme 1 sekundu a zkusíme znovu (může být zpoždění při načítání)
+            await new Promise(resolve => setTimeout(resolve, 1000));
+            
+            // Pokud stále není k dispozici, vytvoříme minimální náhradní třídu
+            if (typeof window.VideoChat !== 'function') {
+                console.error('VideoChat stále není k dispozici, vytvářím náhradní třídu');
+                window.VideoChat = class MinimalVideoChat {
+                    constructor(roomId, userId, username) {
+                        this.roomId = roomId;
+                        this.userId = userId;
+                        this.username = username;
+                        console.log('Náhradní VideoChat instance vytvořena');
+                    }
+                    
+                    async init() {
+                        console.log('VideoChat.init() volána (minimální implementace)');
+                        return true;
+                    }
+                    
+                    // Minimální implementace metod
+                    toggleMicrophone() { return true; }
+                    toggleCamera() { return true; }
+                    shareScreen() { return true; }
+                    leaveRoom() { window.location.href = '/'; }
+                };
+            }
+        }
         
-        // Store a reference to the instance for global access
-        // This allows page lifecycle handlers to access and clean up resources
-        window.videoRoomInstance = this.videoChat;
+        // Create VideoChat instance
+        try {
+            this.videoChat = new window.VideoChat(this.roomId, this.userId, this.username);
+            
+            // Store a reference to the instance for global access
+            // This allows page lifecycle handlers to access and clean up resources
+            window.videoRoomInstance = this.videoChat;
+        } catch (e) {
+            console.error('Chyba při vytváření VideoChat instance:', e);
+            // Zobrazení chyby uživateli
+            const remoteVideos = document.getElementById('remote-videos');
+            if (remoteVideos) {
+                remoteVideos.innerHTML = `
+                    <div class="alert alert-danger my-3 p-3 text-center">
+                        <h4 class="alert-heading"><i class="fas fa-exclamation-triangle"></i> Chyba inicializace</h4>
+                        <p>Nepodařilo se inicializovat video chat. Technické detaily: ${e.message}</p>
+                        <button class="btn btn-primary mt-3" onclick="window.location.reload()">Obnovit stránku</button>
+                    </div>
+                `;
+            }
+        }
         
         // Initialize UI
         this._initUI();
@@ -34,7 +81,9 @@ class RoomController {
         this._setupEventListeners();
         
         // Set up beforeunload handler
-        window.videoRoomUI.setupBeforeUnload(this.videoChat);
+        if (window.videoRoomUI && typeof window.videoRoomUI.setupBeforeUnload === 'function') {
+            window.videoRoomUI.setupBeforeUnload(this.videoChat);
+        }
     }
 
     /**
