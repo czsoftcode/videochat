@@ -20,6 +20,24 @@ class TurnCredentialsController extends AbstractController
     {
         return $this->json([
             [
+                'urls' => 'stun:stun.relay.metered.ca:80',
+            ],
+            [
+                'urls' => 'turns:eu.relay.metered.ca:80',
+                'username' => $this->meteredUsername,
+                'credential' => $this->meteredCredential
+            ],
+            [
+                'urls' => 'turns:eu.relay.metered.ca:80?transport=tcp',
+                'username' => $this->meteredUsername,
+                'credential' => $this->meteredCredential
+            ],
+            [
+                'urls' => 'turns:eu.relay.metered.ca:443',
+                'username' => $this->meteredUsername,
+                'credential' => $this->meteredCredential
+            ],
+            [
                 'urls' => 'turns:eu.relay.metered.ca:443?transport=tcp',
                 'username' => $this->meteredUsername,
                 'credential' => $this->meteredCredential

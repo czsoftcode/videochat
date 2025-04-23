@@ -6,21 +6,27 @@ async function getTurnServers() {
     try {
         const response = await fetch('/api/turn-credentials', {
             headers: {
-                'X-Requested-With': 'XMLHttpRequest'
-            }
+                'X-Requested-With': 'XMLHttpRequest',
+                // Přidejte CSRF token, pokud používáte Symfony formuláře
+                'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.content
+            },
+            credentials: 'same-origin' // Důležité pro cookies/session
         });
 
         if (!response.ok) {
-            throw new Error('Failed to fetch TURN credentials');
+            const errorText = await response.text();
+            throw new Error(`HTTP error! status: ${response.status}, message: ${errorText}`);
         }
 
         const iceServers = await response.json();
+
+        console.log('Received TURN servers:', iceServers);
 
         return iceServers.length > 0 ? iceServers : [
             { urls: 'stun:stun.l.google.com:19302' }
         ];
     } catch (error) {
-        console.warn('Failed to get TURN servers', error);
+        console.error('Failed to get TURN servers', error);
         return [
             { urls: 'stun:stun.l.google.com:19302' }
         ];
