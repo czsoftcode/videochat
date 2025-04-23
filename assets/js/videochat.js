@@ -7,14 +7,12 @@ const peerConfig = {
     debug: 2,
     config: {
         iceServers: [
-            { urls: 'stun:stun.l.google.com:19302' },
-            { urls: 'stun:stun1.google.com:19302' },
-            { urls: 'stun:stun2.google.com:19302' },
-            { urls: 'stun:stun3.google.com:19302' },
-            { urls: 'stun:stun4.google.com:19302' },
-            { urls: 'stun:stun.voiparound.com' },
-            // Přidány veřejné STUN servery pro lepší průchod NAT
-            { urls: 'stun:global.stun.twilio.com:3478' },
+            // Upřednostnit TURN servery
+            {
+                urls: 'turn:openrelay.metered.ca:443?transport=tcp',
+                username: 'openrelayproject',
+                credential: 'openrelayproject'
+            },
             {
                 urls: 'turn:openrelay.metered.ca:80',
                 username: 'openrelayproject',
@@ -25,25 +23,12 @@ const peerConfig = {
                 username: 'openrelayproject',
                 credential: 'openrelayproject'
             },
-            {
-                urls: 'turn:openrelay.metered.ca:443?transport=tcp',
-                username: 'openrelayproject',
-                credential: 'openrelayproject'
-            }
-            // Poznámka: V produkčním prostředí byste měli přidat i TURN servery
-            // pro případy, kdy STUN nestačí. TURN servery obvykle vyžadují autentizaci.
-            /* Příklad TURN serveru:
-            {
-                urls: 'turn:your-turn-server.com:3478',
-                username: 'username',
-                credential: 'password'
-            }
-            */
-        ]
-    },
-    // Použití našeho signalizačního serveru místo standardního PeerJS serveru
-    host: window.location.hostname,
-    path: '/ws'
+            { urls: 'stun:stun.l.google.com:19302' },
+            { urls: 'stun:stun1.google.com:19302' }
+        ],
+        // Vynutit použití TURN serverů
+        iceTransportPolicy: 'relay'
+    }
 };
 
 class VideoChat {
@@ -128,7 +113,9 @@ class VideoChat {
                 console.log('Trying fallback to default PeerJS server');
                 this.peer = new Peer(this.peerId, {
                     debug: 2,
-                    config: peerConfig.config  // Zachováme ICE servery
+                    config: {
+                        iceServers: peerConfig.config.iceServers
+                    }
                 });
             }
 
@@ -455,13 +442,15 @@ class VideoChat {
                 switch(data.type) {
                     case 'user_joined':
                         console.log(`User ${data.userId} joined the room`);
-                        // Call the new user, ale s krátkým zpožděním, aby se peer správně inicializoval
-                        if (this.peer && this.localStream) {
-                            // Dáme peer time to initialize
+
+                        // Volat uživatele pouze pokud má můj userId vyšší hodnotu (zabránit duplicitním voláním)
+                        if (parseInt(this.userId) > parseInt(data.userId)) {
                             setTimeout(() => {
                                 console.log(`Delayed call to user ${data.userId}`);
                                 this.callParticipant(data.userId);
                             }, 1000);
+                        } else {
+                            console.log(`Waiting for user ${data.userId} to call me (my ID ${this.userId} is lower)`);
                         }
                         break;
                         
