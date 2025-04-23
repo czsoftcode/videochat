@@ -51,7 +51,7 @@ class VideoChat {
         this.roomId = roomId;
         this.userId = userId || 'guest';  // Ensure userId is never null
         this.username = username || 'Guest';
-        this.peerId = `${this.userId}_${Date.now()}`;
+        this.peerId = `room_${this.roomId}_user_${this.userId}`;
         this.localStream = null;
         this.peers = {};
         this.peer = null;
@@ -484,19 +484,46 @@ class VideoChat {
                             console.log('Received signal from', data.from);
                         }
                         break;
-                        
+
                     case 'room_users':
-                        // Call all existing users in the room, se zpožděním pro lepší inicializaci
+                        // Call all existing users in the room
                         if (data.users && data.users.length > 0) {
                             console.log('Existing users in room:', data.users);
+
+                            // Přidejte zpoždění před voláním, aby se peer stihly inicializovat
                             setTimeout(() => {
                                 data.users.forEach(userId => {
                                     if (userId !== this.userId) {
-                                        console.log('Calling existing user:', userId);
-                                        this.callParticipant(userId);
+                                        // Použijte konzistentní formát ID
+                                        const targetPeerId = `room_${this.roomId}_user_${userId}`;
+                                        console.log('Calling existing user:', userId, 'with peerId:', targetPeerId);
+
+                                        // Pokud nemáte ještě spojení s tímto peer
+                                        if (!Object.keys(this.peers).some(id => id === targetPeerId)) {
+                                            if (this.peer && this.localStream) {
+                                                const call = this.peer.call(targetPeerId, this.localStream);
+
+                                                if (call) {
+                                                    // Nastavte handlery pro call...
+                                                    console.log('Call initiated to', targetPeerId);
+
+                                                    call.on('stream', (remoteStream) => {
+                                                        console.log('Received stream from call to', targetPeerId);
+                                                        this.addVideoStream(targetPeerId, remoteStream);
+                                                        this.peers[targetPeerId] = call;
+                                                    });
+
+                                                    // Další handlery...
+                                                } else {
+                                                    console.error('Failed to initiate call to', targetPeerId);
+                                                }
+                                            }
+                                        } else {
+                                            console.log('Already connected to', targetPeerId);
+                                        }
                                     }
                                 });
-                            }, 1000); // Přidej malé zpoždění
+                            }, 2000); // Delší zpoždění pro jistotu
                         }
                         break;
                 }
@@ -686,73 +713,55 @@ class VideoChat {
      * Call a new participant
      */
     callParticipant(userId) {
-        // Standardní formát PeerID je userId_timestamp
-        // Pokusíme se o více možností formátu PeerID
-         const possiblePeerIds = [
-            userId + '_' + Date.now(),   // Nejnovější formát
-            userId,                      // Jednoduchý formát
-            userId + '_'                 // Částečný formát
-         ];
-        // const possiblePeerIds = `${userId}_${Date.now()}`;
-        console.log(`Attempting to call user ${userId} with possible IDs:`, possiblePeerIds);
-        
-        let callAttempted = false;
-        
-        // Zkusíme všechny možné formáty PeerID
-        possiblePeerIds.forEach(peerId => {
-            try {
-                // Skip pokud již máme připojení s tímto peerem
-                if (Object.keys(this.peers).some(id => id.startsWith(userId + '_'))) {
-                    console.log(`Already connected to a peer with userId ${userId}`);
-                    return;
-                }
-                
-                if (!this.peer || !this.localStream) {
-                    console.error('PeerJS or localStream not initialized');
-                    return;
-                }
-                
-                console.log(`Attempting to call peer ${peerId}`);
-                const call = this.peer.call(peerId, this.localStream);
-                callAttempted = true;
-                
-                if (!call) {
-                    console.error(`Failed to initiate call to ${peerId}`);
-                    return;
-                }
-                
-                // Set up event handlers
-                call.on('stream', (remoteStream) => {
-                    console.log(`Received stream from ${call.peer}`);
-                    if (!this.peers[call.peer]) {
-                        this.addVideoStream(call.peer, remoteStream);
-                        this.peers[call.peer] = call;
-                    }
-                });
-                
-                call.on('close', () => {
-                    console.log(`Call with ${call.peer} closed`);
-                    this.removeVideoStream(call.peer);
-                    delete this.peers[call.peer];
-                });
-                
-                call.on('error', (err) => {
-                    console.error(`Call error with ${call.peer}:`, err);
-                    
-                    // Netlumíme tuto chybu, jen logujeme
-                    if (err.type !== 'peer-unavailable') {
-                        this.removeVideoStream(call.peer);
-                        delete this.peers[call.peer];
-                    }
-                });
-                
-            } catch (err) {
-                console.error(`Error calling peer ${peerId}:`, err);
+        // Použijte pouze jeden konzistentní formát
+        const targetPeerId = `room_${this.roomId}_user_${userId}`;
+
+        console.log(`Attempting to call user ${userId} with peerId:`, targetPeerId);
+
+        // Zkontrolujte, zda již nemáte spojení s tímto peer
+        if (Object.keys(this.peers).some(id => id === targetPeerId)) {
+            console.log(`Already connected to a peer ${targetPeerId}`);
+            return;
+        }
+
+        if (!this.peer || !this.localStream) {
+            console.error('PeerJS or localStream not initialized');
+            return;
+        }
+
+        try {
+            console.log(`Calling peer ${targetPeerId}`);
+            const call = this.peer.call(targetPeerId, this.localStream);
+
+            if (!call) {
+                console.error(`Failed to initiate call to ${targetPeerId}`);
+                return;
             }
-        });
-        
-        if (!callAttempted) {
-            console.error(`Could not make any call attempts to user ${userId}`);
+
+            // Set up event handlers
+            call.on('stream', (remoteStream) => {
+                console.log(`Received stream from ${targetPeerId}`);
+                this.addVideoStream(targetPeerId, remoteStream);
+                this.peers[targetPeerId] = call;
+            });
+
+            call.on('close', () => {
+                console.log(`Call with ${targetPeerId} closed`);
+                this.removeVideoStream(targetPeerId);
+                delete this.peers[targetPeerId];
+            });
+
+            call.on('error', (err) => {
+                console.error(`Call error with ${targetPeerId}:`, err);
+
+                if (err.type !== 'peer-unavailable') {
+                    this.removeVideoStream(targetPeerId);
+                    delete this.peers[targetPeerId];
+                }
+            });
+
+        } catch (err) {
+            console.error(`Error calling peer ${targetPeerId}:`, err);
         }
     }
 
