@@ -36,7 +36,7 @@ class VideoChat {
         this.roomId = roomId;
         this.userId = userId || 'guest';  // Ensure userId is never null
         this.username = username || 'Guest';
-        this.peerId = `${this.userId}_${Math.random().toString(36).substring(2, 9)}_${Date.now()}`;
+        this.peerId = `room_${this.roomId}_user_${userId}`;
         this.localStream = null;
         this.peers = {};
         this.peer = null;
