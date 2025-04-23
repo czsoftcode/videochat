@@ -68,6 +68,24 @@ class RoomController {
      * Initialize video chat
      */
     _initVideoChat() {
+        // Nejprve kontrola, zda VideoChat třída existuje
+        if (typeof window.VideoChat !== 'function') {
+            console.error('VideoChat třída nebyla nalezena! Zkontrolujte pořadí načítání skriptů.');
+            
+            // Zobrazit chybu uživateli
+            const remoteVideos = document.getElementById('remote-videos');
+            if (remoteVideos) {
+                remoteVideos.innerHTML = `
+                    <div class="alert alert-danger my-3 p-3 text-center">
+                        <h4 class="alert-heading"><i class="fas fa-exclamation-triangle"></i> Chyba inicializace</h4>
+                        <p>Nepodařilo se inicializovat video chat. Komponenta VideoChat nebyla nalezena.</p>
+                        <button class="btn btn-primary mt-3" onclick="window.location.reload()">Obnovit stránku</button>
+                    </div>
+                `;
+            }
+            return;
+        }
+    
         // Initialize camera when page loads
         if (document.readyState === 'loading') {
             document.addEventListener('DOMContentLoaded', this.initializeCamera.bind(this));
@@ -78,7 +96,7 @@ class RoomController {
                 
                 // Try initializing again if the first attempt fails
                 setTimeout(() => {
-                    if (!this.videoChat.localStream || this.videoChat.localStream.getVideoTracks().length === 0) {
+                    if (this.videoChat && (!this.videoChat.localStream || this.videoChat.localStream.getVideoTracks().length === 0)) {
                         console.log('First camera initialization failed, trying again...');
                         this.initializeCamera();
                     }
@@ -88,7 +106,7 @@ class RoomController {
         
         // Also reinitialize on page visibility change (for when coming back to the tab)
         document.addEventListener('visibilitychange', () => {
-            if (document.visibilityState === 'visible') {
+            if (document.visibilityState === 'visible' && this.videoChat) {
                 if (!this.videoChat.localStream) {
                     console.log('Page became visible and no localStream exists, initializing camera');
                     this.initializeCamera();
@@ -109,7 +127,7 @@ class RoomController {
         
         // Check camera status every 5 seconds and auto-retry if needed
         setInterval(() => {
-            if (!this.videoChat.localStream || (this.videoChat.localStream.getVideoTracks().length === 0)) {
+            if (this.videoChat && (!this.videoChat.localStream || (this.videoChat.localStream.getVideoTracks().length === 0))) {
                 const retryButton = document.getElementById('camera-retry');
                 if (retryButton) {
                     retryButton.style.display = 'block';
@@ -191,7 +209,54 @@ class RoomController {
      */
     async initializeCamera() {
         console.log('Initializing camera');
-        await this.videoChat.init();
+        
+        // Kontrola, zda máme VideoChat instanci
+        if (!this.videoChat) {
+            console.log('VideoChat instance není vytvořena, vytvářím novou...');
+            
+            // Kontrola, zda existuje konstruktor
+            if (typeof window.VideoChat !== 'function') {
+                console.error('VideoChat konstruktor není k dispozici!');
+                
+                // Pokus o načtení script tagu dynamicky
+                try {
+                    console.log('Pokus o dynamické načtení videochat.js...');
+                    const script = document.createElement('script');
+                    script.src = '/assets/js/videochat.js';
+                    script.onload = () => {
+                        console.log('VideoChat skript načten, zkouším znovu inicializovat...');
+                        setTimeout(() => this.initializeCamera(), 100);
+                    };
+                    document.head.appendChild(script);
+                    return;
+                } catch (e) {
+                    console.error('Nemohu dynamicky načíst videochat.js:', e);
+                    return;
+                }
+            }
+            
+            // Vytvořit novou instanci
+            try {
+                this.videoChat = new window.VideoChat(this.roomId, this.userId, this.username);
+                window.videoRoomInstance = this.videoChat;
+            } catch (e) {
+                console.error('Chyba při vytváření VideoChat instance:', e);
+                return;
+            }
+        }
+        
+        // Inicializace kamery
+        try {
+            await this.videoChat.init();
+        } catch (e) {
+            console.error('Chyba při inicializaci VideoChat:', e);
+            
+            // Zobrazit tlačítko pro opakování
+            const retryButton = document.getElementById('camera-retry');
+            if (retryButton) {
+                retryButton.style.display = 'block';
+            }
+        }
     }
 
     /**

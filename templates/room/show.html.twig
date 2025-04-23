@@ -147,7 +147,12 @@
     videoChatApp.currentUsername = "{{ app.user ? app.user.username : 'Guest' }}";
     videoChatApp.isOwner = {{ app.user and app.user.id == room.owner.id ? 'true' : 'false' }};
 </script>
-{{ importmap('room-init') }}
+
+{# Přímé načtení knihoven místo použití importmap pro zajištění správného pořadí #}
+<script src="{{ asset('assets/js/videochat.js') }}"></script>
+<script src="{{ asset('assets/js/room-ui.js') }}"></script>
+<script src="{{ asset('assets/js/room-controller.js') }}"></script>
+<script src="{{ asset('assets/js/room-init.js') }}"></script>
 {% endblock %}
 
 </div> {# End of data-turbo-permanent div #}

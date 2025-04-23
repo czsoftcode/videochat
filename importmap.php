@@ -27,16 +27,29 @@ return [
     ],
     'videochat' => [
         'path' => './assets/js/videochat.js',
+        'entrypoint' => true, // Označení jako vstupní bod
     ],
     'room-ui' => [
         'path' => './assets/js/room-ui.js',
+        'imports' => [
+            'videochat' => 'videochat'
+        ]
     ],
     'room-controller' => [
         'path' => './assets/js/room-controller.js',
+        'imports' => [
+            'videochat' => 'videochat',
+            'room-ui' => 'room-ui'
+        ]
     ],
     'room-init' => [
         'path' => './assets/js/room-init.js',
         'entrypoint' => true,
+        'imports' => [
+            'videochat' => 'videochat',
+            'room-ui' => 'room-ui',
+            'room-controller' => 'room-controller'
+        ]
     ],
     'theme-switcher' => [
         'path' => './assets/js/theme-switcher.js',

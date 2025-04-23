@@ -18,36 +18,34 @@ class TurnCredentialsController extends AbstractController
     #[Route('/api/turn-credentials', name: 'api_turn_credentials', methods: ['GET'])]
     public function getTurnCredentials(Request $request): JsonResponse
     {
-        if ($request->headers->get('X-Requested-With') === 'XMLHttpRequest') {
-            return $this->json([
-                [
-                    'urls' => 'stun:stun.relay.metered.ca:80',
-                ],
-                [
-                    'urls' => 'turns:eu.relay.metered.ca:80',
-                    'username' => $this->meteredUsername,
-                    'credential' => $this->meteredCredential
-                ],
-                [
-                    'urls' => 'turns:eu.relay.metered.ca:80?transport=tcp',
-                    'username' => $this->meteredUsername,
-                    'credential' => $this->meteredCredential
-                ],
-                [
-                    'urls' => 'turns:eu.relay.metered.ca:443',
-                    'username' => $this->meteredUsername,
-                    'credential' => $this->meteredCredential
-                ],
-                [
-                    'urls' => 'turns:eu.relay.metered.ca:443?transport=tcp',
-                    'username' => $this->meteredUsername,
-                    'credential' => $this->meteredCredential
-                ],
-                [
-                    'urls' => 'stun:stun.l.google.com:19302'
-                ]
-            ]);
-        }
-        throw $this->createAccessDeniedException('Unauthorized access');
+        // Odstranění kontroly na Ajax, aby fungoval přístup z produkce
+        return $this->json([
+            [
+                'urls' => 'stun:stun.relay.metered.ca:80',
+            ],
+            [
+                'urls' => 'turns:eu.relay.metered.ca:80',
+                'username' => $this->meteredUsername,
+                'credential' => $this->meteredCredential
+            ],
+            [
+                'urls' => 'turns:eu.relay.metered.ca:80?transport=tcp',
+                'username' => $this->meteredUsername,
+                'credential' => $this->meteredCredential
+            ],
+            [
+                'urls' => 'turns:eu.relay.metered.ca:443',
+                'username' => $this->meteredUsername,
+                'credential' => $this->meteredCredential
+            ],
+            [
+                'urls' => 'turns:eu.relay.metered.ca:443?transport=tcp',
+                'username' => $this->meteredUsername,
+                'credential' => $this->meteredCredential
+            ],
+            [
+                'urls' => 'stun:stun.l.google.com:19302'
+            ]
+        ]);
     }
 }
