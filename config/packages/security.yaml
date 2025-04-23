@@ -10,7 +10,7 @@ security:
                 property: email
     firewalls:
         dev:
-            pattern: ^/(_(profiler|wdt)|css|images|js)/
+            pattern: ^/(_(profiler|wdt)|css|images|js|api/turn-credentials)/
             security: false
         
         login:
@@ -49,6 +49,7 @@ security:
         - { path: ^/room/\d+/join, roles: ROLE_USER }
         - { path: ^/login, roles: PUBLIC_ACCESS }
         - { path: ^/register, roles: PUBLIC_ACCESS }
+        - { path: ^/api/turn-credentials, roles: PUBLIC_ACCESS }
 
 when@test:
     security:

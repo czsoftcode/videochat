@@ -34,9 +34,9 @@ services:
     # Definice TurnCredentialsController s parametry pro Metered API
     App\Controller\TurnCredentialsController:
         arguments:
-            $meteredApiKey: '%app.metered_api_key%'
-            $csrfTokenManager: '@security.csrf.token_manager'
+            $meteredApiKey: '%env(METERED_API_KEY)%'
             $httpClient: '@http_client'
+        tags: [ 'controller.service_arguments' ]
 
     App\Controller\RoomController:
         arguments:

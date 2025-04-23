@@ -16,22 +16,30 @@ class TurnCredentialsController extends AbstractController
      */
     private const METERED_TURN_API_URL = 'https://softcode.metered.live/api/v1/turn/credentials';
 
-    /**
-     * TURN server credentials and dependencies
-     */
     public function __construct(
         private string $meteredApiKey,
-        private ?CsrfTokenManagerInterface $csrfTokenManager = null,
-        private ?HttpClientInterface $httpClient = null
+        private HttpClientInterface $httpClient
     ) {
     }
 
-    #[Route('/api/turn-credentials', name: 'api_turn_credentials', methods: ['GET'])]
-    // V src/Controller/TurnCredentialsController.php
+    #[Route('/api/turn-credentials', name: 'api_turn_credentials', methods: ['GET', 'POST', 'OPTIONS'])]
     public function getTurnCredentials(Request $request): JsonResponse
     {
+        // Na začátek metody getTurnCredentials()
+        dump('TURN credentials request received: ' . $request->getPathInfo());
+        dump('API klíč nastaven: ' . (empty($this->meteredApiKey) ? 'NE' : 'ANO'));
+
+        // Pro OPTIONS požadavky (preflight CORS)
+        if ($request->getMethod() === 'OPTIONS') {
+            $response = new JsonResponse(null, 204);
+            $response->headers->set('Access-Control-Allow-Origin', '*');
+            $response->headers->set('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
+            $response->headers->set('Access-Control-Allow-Headers', 'Content-Type');
+            return $response;
+        }
+
         try {
-            // API klíč je bezpečně uložen na serveru
+            // Přímé volání Metered API bez kontroly autentizace
             $apiUrl = self::METERED_TURN_API_URL . '?apiKey=' . urlencode($this->meteredApiKey);
 
             $response = $this->httpClient->request('GET', $apiUrl, [
@@ -43,13 +51,27 @@ class TurnCredentialsController extends AbstractController
 
             if ($response->getStatusCode() === 200) {
                 $data = $response->toArray();
-                return $this->json($data);
-            }
-        } catch (\Exception $e) {
-            error_log('Chyba při získávání TURN credentials: ' . $e->getMessage());
-        }
+                $jsonResponse = $this->json($data);
 
-        return $this->getFallbackIceServers();
+                // Přidáme CORS hlavičky
+                $jsonResponse->headers->set('Access-Control-Allow-Origin', '*');
+                $jsonResponse->headers->set('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
+
+                return $jsonResponse;
+            }
+
+            // Logování pro diagnostiku
+            error_log('Metered API vrátilo chybu: ' . $response->getStatusCode() . ' - ' . $response->getContent(false));
+
+            // Vrácení STUN serverů jako fallback
+            return $this->getFallbackIceServers();
+
+        } catch (\Exception $e) {
+            // Logování pro diagnostiku
+            error_log('Výjimka při získávání TURN credentials: ' . $e->getMessage());
+
+            return $this->getFallbackIceServers();
+        }
     }
 
     #[Route('/api/turn-credentials', name: 'api_turn_credentials_post', methods: ['POST'])]
@@ -102,7 +124,6 @@ class TurnCredentialsController extends AbstractController
      */
     private function getFallbackIceServers(): JsonResponse
     {
-        // Vytvoříme response pouze se STUN servery (funguje i bez autentizace)
         $response = $this->json([
             [
                 'urls' => 'stun:stun.l.google.com:19302'
@@ -118,15 +139,9 @@ class TurnCredentialsController extends AbstractController
             ]
         ]);
 
-        // Přidáme cache control hlavičky pro zabránění ukládání do cache
-        $response->headers->set('Cache-Control', 'no-cache, no-store, must-revalidate');
-        $response->headers->set('Pragma', 'no-cache');
-        $response->headers->set('Expires', '0');
-
-        // Přidáme CORS hlavičky pro zabránění problémům s různými doménami
+        // Přidáme CORS hlavičky
         $response->headers->set('Access-Control-Allow-Origin', '*');
         $response->headers->set('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
-        $response->headers->set('Access-Control-Allow-Headers', 'Content-Type, Authorization');
 
         return $response;
     }

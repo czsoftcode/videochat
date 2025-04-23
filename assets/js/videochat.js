@@ -4,36 +4,42 @@
 
 // Získání TURN serverů pro ICE konfiguraci
 // V assets/js/videochat.js
+// Získání TURN serverů pro ICE konfiguraci
 async function getTurnServers() {
     try {
-        console.log('Získávám TURN credentials z vlastního API...');
+        console.log('Získávám TURN credentials...');
 
-        // Volání našeho backend endpointu
-        const response = await fetch('/api/turn-credentials');
+        // Jednoduché volání bez parametrů
+        const response = await fetch('/api/turn-credentials', {
+            method: 'GET',
+            headers: {
+                'Accept': 'application/json',
+                'X-Requested-With': 'XMLHttpRequest'
+            },
+            // Nepřidáváme credentials
+        });
 
         if (!response.ok) {
+            const errorText = await response.text();
+            console.error('Chyba při získávání TURN serverů:', response.status, errorText);
             throw new Error(`HTTP error ${response.status}`);
         }
 
         const iceServers = await response.json();
-        console.log(`Úspěšně získáno ${iceServers.length} TURN/STUN serverů`);
-
+        console.log('TURN servery získány:', iceServers);
         return iceServers;
     } catch (error) {
-        console.error('Chyba při získávání TURN credentials:', error);
-        return getFallbackIceServers();
-    }
-}
+        console.error('Chyba při získávání TURN serverů:', error);
 
-// Záložní ICE servery pro případ selhání
-function getFallbackIceServers() {
-    console.warn('Používám záložní STUN servery');
-    return [
-        { urls: 'stun:stun.l.google.com:19302' },
-        { urls: 'stun:stun1.l.google.com:19302' },
-        { urls: 'stun:stun2.l.google.com:19302' },
-        { urls: 'stun:stun.relay.metered.ca:80' }
-    ];
+        // Vrátíme alespoň STUN servery jako fallback
+        console.warn('Používám záložní STUN servery');
+        return [
+            { urls: 'stun:stun.l.google.com:19302' },
+            { urls: 'stun:stun1.l.google.com:19302' },
+            { urls: 'stun:stun2.l.google.com:19302' },
+            { urls: 'stun:stun.relay.metered.ca:80' }
+        ];
+    }
 }
 
 // PeerJS configuration
