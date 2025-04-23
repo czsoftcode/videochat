@@ -14,7 +14,7 @@ const peerConfig = {
             { urls: 'stun:stun4.google.com:19302' },
             { urls: 'stun:stun.voiparound.com' },
             // Přidány veřejné STUN servery pro lepší průchod NAT
-            { urls: 'stun:global.stun.twilio.com:3478' }
+            { urls: 'stun:global.stun.twilio.com:3478' },
             {
                 urls: 'turn:openrelay.metered.ca:80',
                 username: 'openrelayproject',
@@ -489,17 +489,14 @@ class VideoChat {
                         // Call all existing users in the room, se zpožděním pro lepší inicializaci
                         if (data.users && data.users.length > 0) {
                             console.log('Existing users in room:', data.users);
-                            
-                            // Zpracujeme seznam uživatelů postupně s odstupem
-                            data.users.forEach((userId, index) => {
-                                if (this.peer && this.localStream) {
-                                    // Postupné volání s časovým odstupem pro každého uživatele
-                                    setTimeout(() => {
-                                        console.log(`Calling existing user ${userId} (${index + 1}/${data.users.length})`);
+                            setTimeout(() => {
+                                data.users.forEach(userId => {
+                                    if (userId !== this.userId) {
+                                        console.log('Calling existing user:', userId);
                                         this.callParticipant(userId);
-                                    }, 500 * (index + 1)); // 500ms rozestup mezi voláními
-                                }
-                            });
+                                    }
+                                });
+                            }, 1000); // Přidej malé zpoždění
                         }
                         break;
                 }
