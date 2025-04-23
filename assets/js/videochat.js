@@ -35,7 +35,7 @@ class VideoChat {
     constructor(roomId, userId, username) {
         this.roomId = roomId;
         this.userId = userId || 'guest';  // Ensure userId is never null
-        this.username = username || 'Guest';
+        this.username = username || 'Host';
         this.peerId = `room_${this.roomId}_user_${userId}`;
         this.localStream = null;
         this.peers = {};
@@ -44,6 +44,7 @@ class VideoChat {
         this.audioEnabled = true;
         this.ws = null;
         this.connectionState = 'disconnected';  // Track WebSocket connection state
+        this.participants = {};  // New object to store participant data
     }
 
     /**
@@ -412,11 +413,11 @@ class VideoChat {
             
             console.log(`Connecting to signaling server at: ${wsUrl}`);
             this.ws = new WebSocket(wsUrl);
-            
+
             this.ws.onopen = () => {
                 console.log('Connected to signaling server');
                 this.connectionState = 'connected';
-                
+
                 // Add a short delay to ensure the connection is fully established
                 setTimeout(() => {
                     // Join the room
@@ -424,9 +425,10 @@ class VideoChat {
                         this.ws.send(JSON.stringify({
                             type: 'join',
                             userId: this.userId,
-                            roomId: this.roomId
+                            roomId: this.roomId,
+                            username: this.username // Přidáváme jméno uživatele
                         }));
-                        
+
                         // Announce presence to everyone
                         this.announcePresence();
                     } catch (e) {
@@ -442,6 +444,15 @@ class VideoChat {
                 switch(data.type) {
                     case 'user_joined':
                         console.log(`User ${data.userId} joined the room`);
+
+                        // Uložíme údaje o uživateli do lokální struktury
+                        if (!this.participants) this.participants = {};
+                        this.participants[data.userId] = {
+                            username: data.username || `Účastník ${data.userId}`
+                        };
+
+                        // Aktualizujeme seznam účastníků v UI, pokud existuje
+                        this._updateParticipantsList();
 
                         // Volat uživatele pouze pokud má můj userId vyšší hodnotu (zabránit duplicitním voláním)
                         if (parseInt(this.userId) > parseInt(data.userId)) {
@@ -478,6 +489,21 @@ class VideoChat {
                         // Call all existing users in the room
                         if (data.users && data.users.length > 0) {
                             console.log('Existing users in room:', data.users);
+
+                            // Uložení informací o uživatelích
+                            data.users.forEach(userId => {
+                                if (userId !== this.userId && !this.participants[userId]) {
+                                    // Pokud existuje usernames object v datech, použijeme ho
+                                    const username = data.usernames && data.usernames[userId]
+                                        ? data.usernames[userId]
+                                        : `Účastník ${userId}`;
+
+                                    this.participants[userId] = { username };
+                                }
+                            });
+
+                            // Aktualizace seznamu účastníků v UI
+                            this._updateParticipantsList();
 
                             // Přidejte zpoždění před voláním, aby se peer stihly inicializovat
                             setTimeout(() => {
@@ -635,6 +661,35 @@ class VideoChat {
     }
 
     /**
+     * Update the participants list in UI
+     */
+    _updateParticipantsList() {
+        const participantsList = document.getElementById('participants-list');
+        if (!participantsList || !this.participants) return;
+
+        // Clear the list while preserving the owner/host
+        const hostElement = participantsList.querySelector('li:first-child');
+        if (hostElement) {
+            participantsList.innerHTML = '';
+            participantsList.appendChild(hostElement);
+        } else {
+            participantsList.innerHTML = '';
+        }
+
+        // Add all participants except the current user
+        for (const userId in this.participants) {
+            if (userId === this.userId) continue;
+
+            const participant = this.participants[userId];
+            const listItem = document.createElement('li');
+            listItem.className = 'list-group-item';
+            listItem.dataset.userId = userId;
+            listItem.textContent = participant.username || `Účastník ${userId}`;
+            participantsList.appendChild(listItem);
+        }
+    }
+
+    /**
      * Announce presence to other participants
      */
     announcePresence() {
@@ -764,7 +819,7 @@ class VideoChat {
         const videoContainer = document.createElement('div');
         videoContainer.className = 'remote-video-wrapper p-2';
         videoContainer.id = 'container-' + peerId;
-        
+
         // Create video element
         const video = document.createElement('video');
         video.srcObject = stream;
@@ -772,19 +827,55 @@ class VideoChat {
         video.playsInline = true;
         video.className = 'w-100 h-100 rounded bg-dark';
         video.id = 'video-' + peerId;
-        
+
+        // Extract user ID from peerId (format: room_X_user_Y)
+        const userIdMatch = peerId.match(/room_\d+_user_(\d+)/);
+        const userId = userIdMatch ? userIdMatch[1] : 'unknown';
+
         // Create username label
         const usernameLabel = document.createElement('div');
         usernameLabel.className = 'position-absolute bottom-0 start-0 p-2 text-light bg-dark bg-opacity-50 rounded';
-        usernameLabel.textContent = 'Participant';
-        
+        usernameLabel.id = 'label-' + peerId;
+
+        // Set username from our participants object if available
+        if (this.participants && this.participants[userId]) {
+            usernameLabel.textContent = this.participants[userId].username;
+        } else {
+            usernameLabel.textContent = `Účastník ${userId}`;
+        }
+
         // Add elements to container
         videoContainer.appendChild(video);
         videoContainer.appendChild(usernameLabel);
         remoteVideos.appendChild(videoContainer);
-        
+
         // Update participant count
         this.updateParticipantCount();
+    }
+
+    /**
+     * Fetch a username by user ID
+     * First tries to get it from DOM, then from memory, then from server
+     */
+    _fetchUsernameById(userId) {
+        return new Promise((resolve) => {
+            // Try to find username in participant list in the DOM
+            const participantsList = document.getElementById('participants-list');
+            if (participantsList) {
+                const items = participantsList.querySelectorAll('li');
+                for (const item of items) {
+                    if (item.dataset.userId === userId) {
+                        return resolve(item.textContent.trim().split('(')[0].trim());
+                    }
+                }
+            }
+
+            // Use a timeout to prevent blocking UI
+            setTimeout(() => {
+                // Default fallback
+                resolve('Účastník ' + userId);
+            }, 50);
+        });
     }
 
     /**

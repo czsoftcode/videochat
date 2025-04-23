@@ -112,14 +112,19 @@
             </div>
             <div class="card-body p-0">
                 <ul class="list-group list-group-flush" id="participants-list">
-                    <li class="list-group-item d-flex justify-content-between align-items-center">
-                        {{ room.owner.username }} (You)
-                        <span class="badge bg-primary rounded-pill">Host</span>
+                    <li class="list-group-item d-flex justify-content-between align-items-center" data-user-id="{{ app.user.id }}">
+                        {{ app.user.username }} {% if app.user.id == room.owner.id %}(Vy){% else %}(Vy){% endif %}
+                        {% if app.user.id == room.owner.id %}
+                            <span class="badge bg-primary rounded-pill">Host</span>
+                        {% endif %}
                     </li>
                     {% for participant in room.participants %}
-                        {% if participant.id != room.owner.id %}
-                            <li class="list-group-item">
+                        {% if participant.id != app.user.id %}
+                            <li class="list-group-item" data-user-id="{{ participant.id }}">
                                 {{ participant.username }}
+                                {% if participant.id == room.owner.id %}
+                                    <span class="badge bg-primary rounded-pill">Host</span>
+                                {% endif %}
                             </li>
                         {% endif %}
                     {% endfor %}
