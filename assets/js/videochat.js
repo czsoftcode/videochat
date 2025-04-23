@@ -7,24 +7,29 @@ const peerConfig = {
     debug: 2,
     config: {
         iceServers: [
-            // Upřednostnit TURN servery
             {
-                urls: 'turn:openrelay.metered.ca:443?transport=tcp',
-                username: 'openrelayproject',
-                credential: 'openrelayproject'
+                urls: "stun:stun.relay.metered.ca:80",
             },
             {
-                urls: 'turn:openrelay.metered.ca:80',
-                username: 'openrelayproject',
-                credential: 'openrelayproject'
+                urls: "turn:eu.relay.metered.ca:80",
+                username: "6de04f8047399b358164d1b7",
+                credential: "g4BuP37HfV06KMLB",
             },
             {
-                urls: 'turn:openrelay.metered.ca:443',
-                username: 'openrelayproject',
-                credential: 'openrelayproject'
+                urls: "turn:eu.relay.metered.ca:80?transport=tcp",
+                username: "6de04f8047399b358164d1b7",
+                credential: "g4BuP37HfV06KMLB",
             },
-            { urls: 'stun:stun.l.google.com:19302' },
-            { urls: 'stun:stun1.google.com:19302' }
+            {
+                urls: "turn:eu.relay.metered.ca:443",
+                username: "6de04f8047399b358164d1b7",
+                credential: "g4BuP37HfV06KMLB",
+            },
+            {
+                urls: "turns:eu.relay.metered.ca:443?transport=tcp",
+                username: "6de04f8047399b358164d1b7",
+                credential: "g4BuP37HfV06KMLB",
+            },
         ],
         // Vynutit použití TURN serverů
         iceTransportPolicy: 'relay'
