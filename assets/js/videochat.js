@@ -262,6 +262,12 @@ class VideoChat {
             // Get the WebSocket URL from a meta tag or use a dynamic approach
             let wsUrl = document.querySelector('meta[name="signaling-server-url"]')?.content;
             
+            // Make sure the URL is using the correct hostname
+            if (wsUrl && wsUrl.includes('softcode.cz/ws') && !wsUrl.includes('videochat.softcode.cz')) {
+                wsUrl = wsUrl.replace('softcode.cz', 'videochat.softcode.cz');
+                console.log('Corrected WebSocket URL:', wsUrl);
+            }
+            
             // Fallback logic for development environments
             if (!wsUrl) {
                 // For localhost, always use plain ws:// protocol
@@ -272,6 +278,16 @@ class VideoChat {
                     const wsProtocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
                     wsUrl = `${wsProtocol}//${window.location.hostname}/ws`;
                 }
+            }
+            
+            // Force use of the current domain for WebSocket URL
+            const currentHostname = window.location.hostname;
+            if (wsUrl && !wsUrl.includes(currentHostname) && currentHostname !== 'localhost') {
+                // Replace the hostname part of URL but keep the protocol and path
+                const wsProtocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+                const wsPath = wsUrl.split('/').slice(3).join('/'); // Get path after hostname
+                wsUrl = `${wsProtocol}//${currentHostname}/${wsPath}`;
+                console.log('Using current hostname for WebSocket:', wsUrl);
             }
             
             console.log(`Connecting to signaling server at: ${wsUrl}`);
@@ -378,8 +394,56 @@ class VideoChat {
                             <div class="text-start bg-dark text-light p-2 mt-3 small">
                                 ${wsInfo}
                             </div>
-                            <button class="btn btn-primary mt-3" onclick="window.location.reload()">Reload Page</button>
-                            <button class="btn btn-outline-secondary mt-3 ms-2" onclick="window.location.href='/room/${videoChatApp.roomSlug}?direct=true'">Try Direct Connection</button>
+                            <div class="mt-3">
+                                <h5>Try Alternative Connections:</h5>
+                                <button class="btn btn-sm btn-outline-info" onclick="testWS('wss://videochat.softcode.cz/ws')">Test /ws</button>
+                                <button class="btn btn-sm btn-outline-info" onclick="testWS('wss://videochat.softcode.cz/ws/')">Test /ws/</button>
+                                <button class="btn btn-sm btn-outline-info" onclick="testWS('ws://videochat.softcode.cz:3000')">Test port 3000</button>
+                            </div>
+                            <div class="mt-3">
+                                <button class="btn btn-primary" onclick="window.location.reload()">Reload Page</button>
+                                <button class="btn btn-outline-secondary ms-2" onclick="window.location.href='/room/${videoChatApp.roomSlug}?direct=true'">Try Direct Connection</button>
+                            </div>
+                            
+                            <script>
+                                function testWS(url) {
+                                    try {
+                                        const testOutput = document.createElement('div');
+                                        testOutput.className = 'alert alert-info mt-2';
+                                        testOutput.textContent = 'Testing connection to ' + url + '...';
+                                        document.querySelector('.alert-danger').appendChild(testOutput);
+                                        
+                                        const ws = new WebSocket(url);
+                                        
+                                        ws.onopen = () => {
+                                            testOutput.className = 'alert alert-success mt-2';
+                                            testOutput.textContent = 'Successfully connected to ' + url;
+                                            console.log('Test connection successful:', url);
+                                            
+                                            // Show retry with this URL
+                                            const retryButton = document.createElement('button');
+                                            retryButton.className = 'btn btn-success btn-sm ms-2';
+                                            retryButton.textContent = 'Use This URL';
+                                            retryButton.onclick = () => {
+                                                // Update meta tag
+                                                document.querySelector('meta[name="signaling-server-url"]').content = url;
+                                                // Reload page
+                                                window.location.reload();
+                                            };
+                                            testOutput.appendChild(retryButton);
+                                        };
+                                        
+                                        ws.onerror = () => {
+                                            testOutput.className = 'alert alert-danger mt-2';
+                                            testOutput.textContent = 'Failed to connect to ' + url;
+                                            console.log('Test connection failed:', url);
+                                        };
+                                        
+                                    } catch (e) {
+                                        console.error('Error testing WebSocket:', e);
+                                    }
+                                }
+                            </script>
                         </div>
                     `;
                 }
