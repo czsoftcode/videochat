@@ -37,3 +37,7 @@ services:
             $meteredApiKey: '%app.metered_api_key%'
             $csrfTokenManager: '@security.csrf.token_manager'
             $httpClient: '@http_client'
+
+    App\Controller\RoomController:
+        arguments:
+            $signalingServerUrl: '%app.signaling_server_url%'
