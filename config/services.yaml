@@ -37,5 +37,3 @@ services:
         arguments:
             $meteredUsername: '%env(METERED_TURN_USERNAME)%'
             $meteredCredential: '%env(METERED_TURN_CREDENTIAL)%'
-        bind:
-            $signalingServerUrl: '%app.signaling_server_url%'

@@ -11,11 +11,17 @@ use Symfony\Contracts\HttpClient\HttpClientInterface;
 
 class TurnCredentialsController extends AbstractController
 {
+    /**
+     * TURN server credentials and CSRF token manager
+     */
     public function __construct(
         private string $meteredUsername,
         private string $meteredCredential,
-        private CsrfTokenManagerInterface $csrfTokenManager
-    ) {}
+        private ?CsrfTokenManagerInterface $csrfTokenManager = null
+    ) {
+        // Pokud csrfTokenManager není poskytnut, nastavíme jej na null
+        // To umožní službě fungovat i když CSRF není k dispozici
+    }
 
     #[Route('/api/turn-credentials', name: 'api_turn_credentials', methods: ['GET'])]
     public function getTurnCredentials(Request $request): JsonResponse
