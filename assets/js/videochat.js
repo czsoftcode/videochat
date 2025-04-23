@@ -641,20 +641,19 @@ class VideoChat {
         try {
             // If WebSocket is connected, we don't need to use the API
             if (this.ws && this.ws.readyState === WebSocket.OPEN) {
-                console.log('Announcing presence via WebSocket');
-                
-                // Send a presence announcement via WebSocket
+                console.log('Announcing presence via WebSocket with my peerId:', this.peerId);
+
                 try {
                     this.ws.send(JSON.stringify({
                         type: 'announce',
                         userId: this.userId,
                         roomId: this.roomId,
-                        username: this.username
+                        username: this.username,
+                        peerId: this.peerId  // Přidejte skutečné ID
                     }));
                 } catch (e) {
                     console.error('Error sending presence announcement:', e);
                 }
-                
                 return;
             }
             
@@ -704,7 +703,7 @@ class VideoChat {
     callParticipant(userId) {
         // Použijte pouze jeden konzistentní formát
         const targetPeerId = `room_${this.roomId}_user_${userId}`;
-
+        console.log(`Cannot directly call user ${userId}, waiting for their announcement with actual peerId`);
         console.log(`Attempting to call user ${userId} with peerId:`, targetPeerId);
 
         // Zkontrolujte, zda již nemáte spojení s tímto peer
