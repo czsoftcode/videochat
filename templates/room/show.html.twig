@@ -313,6 +313,10 @@ if (typeof window.VideoChat !== 'function') {
                 
                 // Sestavíme URL s parametry
                 const url = new URL('/api/turn-credentials', window.location.origin);
+                
+                // Přidáme timestamp pro vyhnutí se cache
+                url.searchParams.append('t', Date.now());
+                
                 if (csrfToken) {
                     url.searchParams.append('csrf_token', csrfToken);
                 }
@@ -320,13 +324,16 @@ if (typeof window.VideoChat !== 'function') {
                     url.searchParams.append('auth_token', authToken);
                 }
                 
+                console.log(`Získávám TURN credentials z: ${url.toString()}`);
+                
                 // Přidáváme nezbytné parametry pro autentizaci
                 const response = await fetch(url.toString(), {
                     method: 'GET',
                     headers: {
                         'Accept': 'application/json',
                         'X-Requested-With': 'XMLHttpRequest',
-                        'Referer': window.location.href
+                        'Referer': window.location.href,
+                        'Cache-Control': 'no-cache, no-store, must-revalidate'
                     },
                     // Důležité - zajistí odeslání cookies pro autentizaci
                     credentials: 'same-origin'
@@ -340,11 +347,18 @@ if (typeof window.VideoChat !== 'function') {
                     if (response.status === 401) {
                         console.log('Zkouším alternativní způsob autentizace pro TURN servery');
                         
-                        // Použijeme jednodušší URL bez parametrů - spoléháme jen na cookies
-                        const retryResponse = await fetch('/api/turn-credentials', {
+                        // Přidáme timestamp pro vyhnutí se cache při druhém pokusu
+                        const retryUrl = new URL('/api/turn-credentials', window.location.origin);
+                        retryUrl.searchParams.append('t', Date.now() + 1);
+                        retryUrl.searchParams.append('retry', 'true');
+                        
+                        // Použijeme jednodušší URL bez parametrů - spoléháme jen na referrer
+                        const retryResponse = await fetch(retryUrl.toString(), {
                             method: 'GET',
                             headers: {
-                                'Accept': 'application/json'
+                                'Accept': 'application/json',
+                                'Referer': window.location.href,
+                                'Cache-Control': 'no-cache'
                             },
                             credentials: 'same-origin'
                         });
@@ -353,6 +367,30 @@ if (typeof window.VideoChat !== 'function') {
                             const retryData = await retryResponse.json();
                             console.log('Druhý pokus úspěšný!');
                             return retryData;
+                        } else {
+                            console.error('I druhý pokus selhal:', await retryResponse.text());
+                            
+                            // Poslední možnost - pokus s POST místo GET (obchází cache)
+                            console.log('Zkouším poslední možnost - POST request');
+                            const lastResponse = await fetch('/api/turn-credentials', {
+                                method: 'POST',  // POST místo GET
+                                headers: {
+                                    'Accept': 'application/json', 
+                                    'Content-Type': 'application/json',
+                                    'X-Requested-With': 'XMLHttpRequest'
+                                },
+                                credentials: 'same-origin',
+                                body: JSON.stringify({
+                                    timestamp: Date.now(),
+                                    roomId: videoChatApp.roomId
+                                })
+                            });
+                            
+                            if (lastResponse.ok) {
+                                const lastData = await lastResponse.json();
+                                console.log('POST pokus úspěšný!');
+                                return lastData;
+                            }
                         }
                     }
                     
