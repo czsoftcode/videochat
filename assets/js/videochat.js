@@ -16,15 +16,16 @@ const peerConfig = {
 class VideoChat {
     constructor(roomId, userId, username) {
         this.roomId = roomId;
-        this.userId = userId;
-        this.username = username;
-        this.peerId = `${userId}_${Date.now()}`;
+        this.userId = userId || 'guest';  // Ensure userId is never null
+        this.username = username || 'Guest';
+        this.peerId = `${this.userId}_${Date.now()}`;
         this.localStream = null;
         this.peers = {};
         this.peer = null;
         this.videoEnabled = true;
         this.audioEnabled = true;
         this.ws = null;
+        this.connectionState = 'disconnected';  // Track WebSocket connection state
     }
 
     /**
@@ -52,8 +53,21 @@ class VideoChat {
             const localVideo = document.getElementById('local-video');
             if (localVideo) {
                 localVideo.srcObject = this.localStream;
-                localVideo.play()
-                    .catch(e => console.error("Error playing local video:", e));
+                
+                // Wait a short time before playing to avoid AbortError
+                setTimeout(() => {
+                    localVideo.play()
+                        .catch(e => {
+                            console.error("Error playing local video:", e);
+                            // Try again after a longer delay if it fails
+                            setTimeout(() => {
+                                if (localVideo.paused) {
+                                    localVideo.play()
+                                        .catch(e2 => console.error("Second attempt to play video failed:", e2));
+                                }
+                            }, 500);
+                        });
+                }, 100);
             }
 
             // Initialize PeerJS
@@ -265,16 +279,24 @@ class VideoChat {
             
             this.ws.onopen = () => {
                 console.log('Connected to signaling server');
+                this.connectionState = 'connected';
                 
-                // Join the room
-                this.ws.send(JSON.stringify({
-                    type: 'join',
-                    userId: this.userId,
-                    roomId: this.roomId
-                }));
-                
-                // Announce presence to everyone
-                this.announcePresence();
+                // Add a short delay to ensure the connection is fully established
+                setTimeout(() => {
+                    // Join the room
+                    try {
+                        this.ws.send(JSON.stringify({
+                            type: 'join',
+                            userId: this.userId,
+                            roomId: this.roomId
+                        }));
+                        
+                        // Announce presence to everyone
+                        this.announcePresence();
+                    } catch (e) {
+                        console.error('Error sending message to WebSocket server:', e);
+                    }
+                }, 200);
             };
             
             this.ws.onmessage = (event) => {
@@ -380,6 +402,26 @@ class VideoChat {
             // If WebSocket is connected, we don't need to use the API
             if (this.ws && this.ws.readyState === WebSocket.OPEN) {
                 console.log('Announcing presence via WebSocket');
+                
+                // Send a presence announcement via WebSocket
+                try {
+                    this.ws.send(JSON.stringify({
+                        type: 'announce',
+                        userId: this.userId,
+                        roomId: this.roomId,
+                        username: this.username
+                    }));
+                } catch (e) {
+                    console.error('Error sending presence announcement:', e);
+                }
+                
+                return;
+            }
+            
+            // Wait a moment if we're still connecting
+            if (this.ws && this.ws.readyState === WebSocket.CONNECTING) {
+                console.log('WebSocket still connecting, will try again in 500ms');
+                setTimeout(() => this.announcePresence(), 500);
                 return;
             }
             
@@ -388,9 +430,15 @@ class VideoChat {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json'
-                }
+                },
+                credentials: 'same-origin'  // Send cookies for authentication
             })
-            .then(response => response.json())
+            .then(response => {
+                if (!response.ok) {
+                    throw new Error(`HTTP error ${response.status}`);
+                }
+                return response.json();
+            })
             .then(data => console.log('Announced presence via API:', data))
             .catch(error => console.error('Error announcing presence:', error));
         } catch (error) {
