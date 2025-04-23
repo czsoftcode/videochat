@@ -2,35 +2,36 @@
  * VideoChat WebRTC functionality
  */
 
+async function getTurnServers() {
+    try {
+        const response = await fetch('/api/turn-credentials', {
+            headers: {
+                'X-Requested-With': 'XMLHttpRequest'
+            }
+        });
+
+        if (!response.ok) {
+            throw new Error('Failed to fetch TURN credentials');
+        }
+
+        const iceServers = await response.json();
+
+        return iceServers.length > 0 ? iceServers : [
+            { urls: 'stun:stun.l.google.com:19302' }
+        ];
+    } catch (error) {
+        console.warn('Failed to get TURN servers', error);
+        return [
+            { urls: 'stun:stun.l.google.com:19302' }
+        ];
+    }
+}
+
 // PeerJS configuration
 const peerConfig = {
     debug: 2,
     config: {
-        iceServers: [
-            {
-                urls: "stun:stun.relay.metered.ca:80",
-            },
-            {
-                urls: "turn:eu.relay.metered.ca:80",
-                username: "6de04f8047399b358164d1b7",
-                credential: "g4BuP37HfV06KMLB",
-            },
-            {
-                urls: "turn:eu.relay.metered.ca:80?transport=tcp",
-                username: "6de04f8047399b358164d1b7",
-                credential: "g4BuP37HfV06KMLB",
-            },
-            {
-                urls: "turn:eu.relay.metered.ca:443",
-                username: "6de04f8047399b358164d1b7",
-                credential: "g4BuP37HfV06KMLB",
-            },
-            {
-                urls: "turns:eu.relay.metered.ca:443?transport=tcp",
-                username: "6de04f8047399b358164d1b7",
-                credential: "g4BuP37HfV06KMLB",
-            },
-        ],
+        iceServers: await getTurnServers(),
         // Vynutit použití TURN serverů
         iceTransportPolicy: 'relay'
     }
