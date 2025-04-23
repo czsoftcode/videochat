@@ -756,14 +756,11 @@ class VideoChat {
      * Call a new participant
      */
     callParticipant(userId) {
-        // Použijte pouze jeden konzistentní formát
         const targetPeerId = `room_${this.roomId}_user_${userId}`;
-        console.log(`Cannot directly call user ${userId}, waiting for their announcement with actual peerId`);
-        console.log(`Attempting to call user ${userId} with peerId:`, targetPeerId);
+        console.log(`Attempting to call user ${userId} with peerId: ${targetPeerId}`);
 
-        // Zkontrolujte, zda již nemáte spojení s tímto peer
         if (Object.keys(this.peers).some(id => id === targetPeerId)) {
-            console.log(`Already connected to a peer ${targetPeerId}`);
+            console.log(`Already connected to ${targetPeerId}`);
             return;
         }
 
@@ -773,15 +770,14 @@ class VideoChat {
         }
 
         try {
-            console.log(`Calling peer ${targetPeerId}`);
+            console.log(`Initiating call to ${targetPeerId}`);
             const call = this.peer.call(targetPeerId, this.localStream);
 
             if (!call) {
-                console.error(`Failed to initiate call to ${targetPeerId}`);
+                console.error(`Failed to create call to ${targetPeerId}`);
                 return;
             }
 
-            // Set up event handlers
             call.on('stream', (remoteStream) => {
                 console.log(`Received stream from ${targetPeerId}`);
                 this.addVideoStream(targetPeerId, remoteStream);
@@ -796,11 +792,8 @@ class VideoChat {
 
             call.on('error', (err) => {
                 console.error(`Call error with ${targetPeerId}:`, err);
-
-                if (err.type !== 'peer-unavailable') {
-                    this.removeVideoStream(targetPeerId);
-                    delete this.peers[targetPeerId];
-                }
+                this.removeVideoStream(targetPeerId);
+                delete this.peers[targetPeerId];
             });
 
         } catch (err) {
