@@ -11,10 +11,11 @@ const WebSocket = require('ws');
 const PORT = process.env.SIGNALING_PORT || 3000;
 const HOST = process.env.SIGNALING_HOST || '0.0.0.0'; // Bind to all network interfaces
 
-// Create WebSocket server
+// Create WebSocket server with increased verbosity
 const wss = new WebSocket.Server({ 
   host: HOST,
-  port: PORT 
+  port: PORT,
+  clientTracking: true // Tracking clients for debugging
 });
 
 // Get server public hostname
@@ -47,16 +48,33 @@ Press Ctrl+C to stop the server
 ================================================
 `);
 
+// Set interval to print stats every 30 seconds
+setInterval(() => {
+  const roomsInfo = Array.from(rooms.entries()).map(([roomId, userSet]) => {
+    return `Room ${roomId}: ${userSet.size} users (${Array.from(userSet).join(', ')})`;
+  });
+  
+  console.log(`
+========== SERVER STATS ==========
+Time: ${new Date().toLocaleTimeString()}
+Connected clients: ${clients.size}
+Active rooms: ${rooms.size}
+${roomsInfo.join('\n')}
+================================
+`);
+}, 30000);
+
 // Store connected clients
 const clients = new Map();
 const rooms = new Map();
 
 // Handle connections
-wss.on('connection', (ws) => {
+wss.on('connection', (ws, req) => {
   let userId = null;
   let roomId = null;
+  const clientIp = req.socket.remoteAddress;
 
-  console.log('New client connected');
+  console.log(`New client connected from ${clientIp}`);
 
   // Handle messages
   ws.on('message', (message) => {
@@ -78,10 +96,12 @@ wss.on('connection', (ws) => {
           // Create room if it doesn't exist
           if (!rooms.has(roomId)) {
             rooms.set(roomId, new Set());
+            console.log(`Created new room: ${roomId}`);
           }
           
           // Add user to room
           rooms.get(roomId).add(userId);
+          console.log(`User ${userId} joined room ${roomId}. Room now has ${rooms.get(roomId).size} users.`);
           
           // Notify everyone in the room that a new user joined
           broadcastToRoom(roomId, {
@@ -92,11 +112,14 @@ wss.on('connection', (ws) => {
           
           // Send the list of existing users to the new client
           const existingUsers = Array.from(rooms.get(roomId)).filter(id => id !== userId);
-          ws.send(JSON.stringify({
+          const roomUsersMessage = {
             type: 'room_users',
             users: existingUsers,
             timestamp: Date.now()
-          }));
+          };
+          
+          console.log(`Sending room users to ${userId}:`, roomUsersMessage);
+          ws.send(JSON.stringify(roomUsersMessage));
           break;
           
         case 'signal':
@@ -171,15 +194,36 @@ wss.on('connection', (ws) => {
   });
 });
 
+// Handle new custom message types
+wss.on('message', (message) => {
+  if (typeof message === 'string' && message === 'STATS') {
+    const stats = {
+      clients: clients.size,
+      rooms: Array.from(rooms.entries()).map(([roomId, users]) => ({
+        roomId,
+        users: Array.from(users)
+      }))
+    };
+    console.log('Current server stats:', stats);
+  }
+});
+
 // Broadcast a message to all clients in a room except the sender
 function broadcastToRoom(roomId, message, excludeUserId = null) {
-  if (!rooms.has(roomId)) return;
+  if (!rooms.has(roomId)) {
+    console.log(`Cannot broadcast to non-existent room: ${roomId}`);
+    return;
+  }
   
+  let sentCount = 0;
   for (const userId of rooms.get(roomId)) {
     if (userId !== excludeUserId && clients.has(userId)) {
       clients.get(userId).send(JSON.stringify(message));
+      sentCount++;
     }
   }
+  
+  console.log(`Broadcast message to room ${roomId}: type=${message.type}, recipients=${sentCount}, excluded=${excludeUserId}`);
 }
 
 // Handle server shutdown

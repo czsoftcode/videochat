@@ -152,7 +152,8 @@ class VideoChat {
      * Set up media devices with proper error handling
      */
     async _setupMediaDevices() {
-        const constraints = {
+        // Základní nastavení s audio a video
+        let constraints = {
             audio: true,
             video: true
         };
@@ -173,26 +174,91 @@ class VideoChat {
                 return this.localStream;
             }
             
+            // Upravme constraints podle toho, co je dostupné
+            if (!hasCamera && !hasMicrophone) {
+                this._showToast('No devices', 'No camera or microphone detected. You will be in view-only mode.', 'warning');
+                return null;
+            } else if (!hasCamera) {
+                constraints.video = false;
+                this._showToast('No camera', 'No camera detected. Continuing with audio only.', 'info');
+            } else if (!hasMicrophone) {
+                constraints.audio = false;
+                this._showToast('No microphone', 'No microphone detected. Continuing with video only.', 'info');
+            }
+            
             // Now request the stream with specified constraints
             console.log('Requesting media stream with constraints:', constraints);
-            const stream = await navigator.mediaDevices.getUserMedia(constraints);
-            console.log('Media stream obtained successfully');
-            
-            // Ensure stream has active tracks
-            const videoTracks = stream.getVideoTracks();
-            const audioTracks = stream.getAudioTracks();
-            
-            console.log(`Got ${videoTracks.length} video tracks and ${audioTracks.length} audio tracks`);
-            
-            // Check if tracks are enabled
-            if (videoTracks.length > 0) {
-                videoTracks[0].enabled = true;
+            try {
+                const stream = await navigator.mediaDevices.getUserMedia(constraints);
+                console.log('Media stream obtained successfully');
+                
+                // Ensure stream has active tracks
+                const videoTracks = stream.getVideoTracks();
+                const audioTracks = stream.getAudioTracks();
+                
+                console.log(`Got ${videoTracks.length} video tracks and ${audioTracks.length} audio tracks`);
+                
+                // Check if tracks are enabled
+                if (videoTracks.length > 0) {
+                    videoTracks[0].enabled = true;
+                    this.videoEnabled = true;
+                } else {
+                    this.videoEnabled = false;
+                }
+                
+                if (audioTracks.length > 0) {
+                    audioTracks[0].enabled = true;
+                    this.audioEnabled = true;
+                } else {
+                    this.audioEnabled = false;
+                }
+                
+                // Aktualizujte UI podle dostupných zařízení
+                this._updateUIBasedOnDevices();
+                
+                return stream;
+            } catch (innerError) {
+                // Pokud selhalo získání streamu s původními constraints, zkusme video-only nebo audio-only
+                console.error('Error accessing media with initial constraints:', innerError);
+                
+                if (constraints.audio && constraints.video) {
+                    // Zkusme jen video
+                    if (hasCamera) {
+                        console.log('Trying video-only...');
+                        try {
+                            const videoOnlyStream = await navigator.mediaDevices.getUserMedia({ video: true });
+                            console.log('Got video-only stream');
+                            this.videoEnabled = true;
+                            this.audioEnabled = false;
+                            // Aktualizujte UI
+                            this._updateUIBasedOnDevices();
+                            return videoOnlyStream;
+                        } catch (videoError) {
+                            console.error('Video-only also failed:', videoError);
+                        }
+                    }
+                    
+                    // Zkusme jen audio
+                    if (hasMicrophone) {
+                        console.log('Trying audio-only...');
+                        try {
+                            const audioOnlyStream = await navigator.mediaDevices.getUserMedia({ audio: true });
+                            console.log('Got audio-only stream');
+                            this.videoEnabled = false;
+                            this.audioEnabled = true;
+                            // Aktualizujte UI
+                            this._updateUIBasedOnDevices();
+                            return audioOnlyStream;
+                        } catch (audioError) {
+                            console.error('Audio-only also failed:', audioError);
+                        }
+                    }
+                }
+                
+                // Pokud vše selže, vrátíme null
+                this._showToast('Device access failed', 'Could not access camera or microphone. You will be in view-only mode.', 'warning');
+                return null;
             }
-            if (audioTracks.length > 0) {
-                audioTracks[0].enabled = true;
-            }
-            
-            return stream;
             
         } catch (err) {
             console.error('Error accessing media devices:', err);
@@ -904,6 +970,50 @@ class VideoChat {
             // Navigate back to home page anyway
             window.location.href = '/';
         });
+    }
+    
+    /**
+     * Update UI elements based on available devices
+     */
+    _updateUIBasedOnDevices() {
+        // Aktualizace UI podle dostupných zařízení
+        const cameraToggle = document.getElementById('camera-toggle');
+        const micToggle = document.getElementById('mic-toggle');
+        const videoMenuItem = document.getElementById('toggle-video-menu');
+        const audioMenuItem = document.getElementById('toggle-audio-menu');
+        
+        // Kamera
+        if (cameraToggle) {
+            if (!this.videoEnabled) {
+                cameraToggle.classList.add('disabled');
+                cameraToggle.title = 'Camera not available';
+                cameraToggle.innerHTML = '<i class="fa fa-video-slash"></i>';
+                cameraToggle.classList.add('btn-danger');
+                cameraToggle.classList.remove('btn-outline-light');
+            }
+        }
+        
+        // Mikrofon
+        if (micToggle) {
+            if (!this.audioEnabled) {
+                micToggle.classList.add('disabled');
+                micToggle.title = 'Microphone not available';
+                micToggle.innerHTML = '<i class="fa fa-microphone-slash"></i>';
+                micToggle.classList.add('btn-danger');
+                micToggle.classList.remove('btn-outline-light');
+            }
+        }
+        
+        // Menu položky
+        if (videoMenuItem && !this.videoEnabled) {
+            videoMenuItem.textContent = 'Camera not available';
+            videoMenuItem.classList.add('disabled');
+        }
+        
+        if (audioMenuItem && !this.audioEnabled) {
+            audioMenuItem.textContent = 'Microphone not available';
+            audioMenuItem.classList.add('disabled');
+        }
     }
     
     /**
