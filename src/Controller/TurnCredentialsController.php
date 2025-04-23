@@ -23,55 +23,52 @@ class TurnCredentialsController extends AbstractController
     }
 
     #[Route('/api/turn-credentials', name: 'api_turn_credentials', methods: ['GET', 'POST', 'OPTIONS'])]
-    public function getTurnCredentials(Request $request): JsonResponse
+    public function getTurnCredentials(Request $request): Response
     {
-        // Na začátek metody getTurnCredentials()
-        dump('TURN credentials request received: ' . $request->getPathInfo());
-        dump('API klíč nastaven: ' . (empty($this->meteredApiKey) ? 'NE' : 'ANO'));
+        // Přidám logování pro diagnostiku
+        dd('TURN credentials request received from: ' . $request->getClientIp());
+        dd('API Key set: ' . (empty($this->meteredApiKey) || $this->meteredApiKey === '%env(METERED_API_KEY)%' ? 'NO' : 'YES'));
 
-        // Pro OPTIONS požadavky (preflight CORS)
-        if ($request->getMethod() === 'OPTIONS') {
-            $response = new JsonResponse(null, 204);
-            $response->headers->set('Access-Control-Allow-Origin', '*');
-            $response->headers->set('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
-            $response->headers->set('Access-Control-Allow-Headers', 'Content-Type');
+        // Pro OPTIONS požadavky (CORS preflight)
+        if ($request->isMethod('OPTIONS')) {
+            $response = new Response('', Response::HTTP_NO_CONTENT);
+            $this->setCorsHeaders($response);
             return $response;
         }
 
         try {
-            // Přímé volání Metered API bez kontroly autentizace
+            // Volání Metered API
             $apiUrl = self::METERED_TURN_API_URL . '?apiKey=' . urlencode($this->meteredApiKey);
+            error_log('Calling Metered API at: ' . self::METERED_TURN_API_URL);
 
             $response = $this->httpClient->request('GET', $apiUrl, [
                 'timeout' => 5,
                 'headers' => [
-                    'Accept' => 'application/json'
+                    'Accept' => 'application/json',
+                    'User-Agent' => 'VideoChat/1.0'
                 ]
             ]);
 
             if ($response->getStatusCode() === 200) {
                 $data = $response->toArray();
-                $jsonResponse = $this->json($data);
+                error_log('Successfully got TURN servers: ' . count($data));
 
-                // Přidáme CORS hlavičky
-                $jsonResponse->headers->set('Access-Control-Allow-Origin', '*');
-                $jsonResponse->headers->set('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
-
+                $jsonResponse = new JsonResponse($data);
+                $this->setCorsHeaders($jsonResponse);
                 return $jsonResponse;
             }
 
-            // Logování pro diagnostiku
-            error_log('Metered API vrátilo chybu: ' . $response->getStatusCode() . ' - ' . $response->getContent(false));
-
-            // Vrácení STUN serverů jako fallback
-            return $this->getFallbackIceServers();
+            // Logování chyby
+            error_log('Metered API error: ' . $response->getStatusCode() . ' - ' . $response->getContent(false));
 
         } catch (\Exception $e) {
-            // Logování pro diagnostiku
-            error_log('Výjimka při získávání TURN credentials: ' . $e->getMessage());
-
-            return $this->getFallbackIceServers();
+            error_log('Exception when calling Metered API: ' . $e->getMessage());
         }
+
+        // Fallback response
+        $fallbackResponse = new JsonResponse($this->getFallbackServers());
+        $this->setCorsHeaders($fallbackResponse);
+        return $fallbackResponse;
     }
 
     #[Route('/api/turn-credentials', name: 'api_turn_credentials_post', methods: ['POST'])]
@@ -122,9 +119,9 @@ class TurnCredentialsController extends AbstractController
     /**
      * Záložní ICE servery - pouze veřejné STUN servery
      */
-    private function getFallbackIceServers(): JsonResponse
+    private function getFallbackServers(): array
     {
-        $response = $this->json([
+        return [
             [
                 'urls' => 'stun:stun.l.google.com:19302'
             ],
@@ -137,12 +134,14 @@ class TurnCredentialsController extends AbstractController
             [
                 'urls' => 'stun:stun.relay.metered.ca:80'
             ]
-        ]);
+        ];
+    }
 
-        // Přidáme CORS hlavičky
+    private function setCorsHeaders(Response $response): void
+    {
         $response->headers->set('Access-Control-Allow-Origin', '*');
         $response->headers->set('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
-
-        return $response;
+        $response->headers->set('Access-Control-Allow-Headers', 'Content-Type, X-Requested-With');
+        $response->headers->set('Cache-Control', 'no-cache, no-store, must-revalidate');
     }
 }

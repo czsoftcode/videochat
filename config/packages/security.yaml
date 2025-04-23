@@ -12,7 +12,11 @@ security:
         dev:
             pattern: ^/(_(profiler|wdt)|css|images|js|api/turn-credentials)/
             security: false
-        
+
+        turn_credentials:
+            pattern: ^/api/turn-credentials
+            security: false
+
         login:
             pattern: ^/api/login
             stateless: true

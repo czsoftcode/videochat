@@ -4,24 +4,21 @@
 
 // Získání TURN serverů pro ICE konfiguraci
 // V assets/js/videochat.js
-// Získání TURN serverů pro ICE konfiguraci
 async function getTurnServers() {
     try {
         console.log('Získávám TURN credentials...');
 
-        // Jednoduché volání bez parametrů
-        const response = await fetch('/api/turn-credentials', {
+        // Jednoduché volání bez složitých parametrů
+        const timestamp = Date.now();
+        const response = await fetch(`/api/turn-credentials?t=${timestamp}`, {
             method: 'GET',
             headers: {
                 'Accept': 'application/json',
                 'X-Requested-With': 'XMLHttpRequest'
-            },
-            // Nepřidáváme credentials
+            }
         });
 
         if (!response.ok) {
-            const errorText = await response.text();
-            console.error('Chyba při získávání TURN serverů:', response.status, errorText);
             throw new Error(`HTTP error ${response.status}`);
         }
 
