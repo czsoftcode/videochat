@@ -1134,11 +1134,21 @@ class VideoChat {
         // Close PeerJS connection
         if (this.peer) {
             try {
+                // Ukončete všechny spojení
+                Object.values(this.peers).forEach(call => {
+                    try {
+                        call.close();
+                    } catch (e) {
+                        console.error('Error closing call:', e);
+                    }
+                });
+
+                // Zničte Peer objekt
                 this.peer.destroy();
+                this.peer = null;
             } catch (e) {
                 console.error('Error destroying peer:', e);
             }
-            this.peer = null;
         }
         
         // Clear reference to all peer connections
