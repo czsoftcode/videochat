@@ -26,18 +26,22 @@ class RoomController extends AbstractController
     private $validator;
     private $hub;
 
+    private $signalingServerUrl;
+
     public function __construct(
         EntityManagerInterface $entityManager,
         RoomRepository $roomRepository,
         SluggerInterface $slugger,
         ValidatorInterface $validator,
-        HubInterface $hub
+        HubInterface $hub,
+        ?string $signalingServerUrl = null
     ) {
         $this->entityManager = $entityManager;
         $this->roomRepository = $roomRepository;
         $this->slugger = $slugger;
         $this->validator = $validator;
         $this->hub = $hub;
+        $this->signalingServerUrl = $signalingServerUrl;
     }
 
     #[Route('/', name: 'app_home', methods: ['GET'])]
@@ -227,7 +231,8 @@ class RoomController extends AbstractController
             
             try {
                 return $this->render('room/show.html.twig', [
-                    'room' => $room
+                    'room' => $room,
+                    'signaling_server_url' => $this->signalingServerUrl
                 ]);
             } catch (\Exception $e) {
                 // Log any rendering errors

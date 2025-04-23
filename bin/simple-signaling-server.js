@@ -8,16 +8,40 @@
 const WebSocket = require('ws');
 
 // Configuration
-const PORT = 3000;
+const PORT = process.env.SIGNALING_PORT || 3000;
+const HOST = process.env.SIGNALING_HOST || '0.0.0.0'; // Bind to all network interfaces
 
 // Create WebSocket server
-const wss = new WebSocket.Server({ port: PORT });
+const wss = new WebSocket.Server({ 
+  host: HOST,
+  port: PORT 
+});
+
+// Get server public hostname
+const os = require('os');
+const networkInterfaces = os.networkInterfaces();
+const addresses = [];
+
+// Find all network interfaces
+for (const ifaceName in networkInterfaces) {
+  for (const iface of networkInterfaces[ifaceName]) {
+    // Skip internal and non-IPv4 addresses
+    if (iface.family !== 'IPv4' || iface.internal !== false) {
+      continue;
+    }
+    addresses.push(iface.address);
+  }
+}
+
+const publicAddress = addresses.length ? addresses[0] : 'localhost';
 
 console.log(`
 ================================================
   VideoChat - Simple Signaling Server
 ================================================
-Server is running on ws://localhost:${PORT}
+Server is running on:
+- Local: ws://localhost:${PORT}
+- Network: ws://${publicAddress}:${PORT}
 This server is required for real-time communication
 Press Ctrl+C to stop the server
 ================================================

@@ -245,7 +245,13 @@ class VideoChat {
      */
     _connectToSignalingServer() {
         try {
-            this.ws = new WebSocket('ws://localhost:3000');
+            // Get the WebSocket URL from a meta tag or use a dynamic approach
+            const wsProtocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+            const wsUrl = document.querySelector('meta[name="signaling-server-url"]')?.content || 
+                          `${wsProtocol}//${window.location.hostname}:3000`;
+            
+            console.log(`Connecting to signaling server at: ${wsUrl}`);
+            this.ws = new WebSocket(wsUrl);
             
             this.ws.onopen = () => {
                 console.log('Connected to signaling server');

@@ -7,7 +7,9 @@
 {% endblock %}
 
 {% block body %}
-{# Add Turbo cache control to prevent reusing the page from the cache #}
+{# Add meta tag for signaling server URL and Turbo cache control #}
+<meta name="signaling-server-url" content="{{ signaling_server_url|default(app.request.schemeAndHttpHost|replace({'http:': 'ws:', 'https:': 'wss:'}) ~ ':3000') }}">
+<meta name="in-video-room" content="true">
 <div data-turbo-permanent id="video-chat-room" data-turbo-cache="false">
 
 <div id="roomOptionsTrigger" class="position-fixed top-0 end-0 mt-5 me-3">
@@ -73,8 +75,8 @@
                         <div class="position-absolute bottom-0 start-0 bg-dark bg-opacity-50 text-white px-2 py-1 rounded" style="font-size: 0.8rem;">
                             You ({{ app.user ? app.user.username : 'Guest' }})
                         </div>
-                        <button id="camera-retry" onclick="initializeCamera()" class="btn btn-sm btn-danger position-absolute top-0 end-0 m-1" title="Kamera se neinicializovala. Klikněte pro opětovný pokus." style="display: none;">
-                            <i class="fa fa-video-slash"></i> Zapnout kameru
+                        <button id="camera-retry" onclick="initializeCamera()" class="btn btn-sm btn-danger position-absolute top-0 end-0 m-1" title="Camera did not initialize. Click to retry." style="display: none;">
+                            <i class="fa fa-video-slash"></i> Enable Camera
                         </button>
                     </div>
                     <div id="remote-videos" class="d-flex flex-wrap justify-content-center align-items-center" style="min-height: 400px;">
