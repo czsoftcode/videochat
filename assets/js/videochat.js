@@ -688,12 +688,12 @@ class VideoChat {
     callParticipant(userId) {
         // Standardní formát PeerID je userId_timestamp
         // Pokusíme se o více možností formátu PeerID
-        // const possiblePeerIds = [
-        //    userId + '_' + Date.now(),   // Nejnovější formát
-        //    userId,                      // Jednoduchý formát
-        //    userId + '_'                 // Částečný formát
-        // ];
-        const possiblePeerIds = `${userId}_${Date.now()}`;
+         const possiblePeerIds = [
+            userId + '_' + Date.now(),   // Nejnovější formát
+            userId,                      // Jednoduchý formát
+            userId + '_'                 // Částečný formát
+         ];
+        // const possiblePeerIds = `${userId}_${Date.now()}`;
         console.log(`Attempting to call user ${userId} with possible IDs:`, possiblePeerIds);
         
         let callAttempted = false;
