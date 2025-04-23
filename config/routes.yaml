@@ -4,6 +4,17 @@ controllers:
         namespace: App\Controller
     type: attribute
 
+# Routování pro statické JS soubory, pokud importmap asset není k dispozici
+js_assets:
+    path: /assets/js/{filename}
+    controller: Symfony\Bundle\FrameworkBundle\Controller\TemplateController
+    defaults:
+        template: 'fallback/js_assets.html.twig'
+        parameters:
+            filename: null
+    requirements:
+        filename: ".+\\.js"
+
 api_login_check:
     path: /api/login_check
     methods: ['POST']
