@@ -246,9 +246,19 @@ class VideoChat {
     _connectToSignalingServer() {
         try {
             // Get the WebSocket URL from a meta tag or use a dynamic approach
-            const wsProtocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-            const wsUrl = document.querySelector('meta[name="signaling-server-url"]')?.content || 
-                          `${wsProtocol}//${window.location.hostname}:3000`;
+            let wsUrl = document.querySelector('meta[name="signaling-server-url"]')?.content;
+            
+            // Fallback logic for development environments
+            if (!wsUrl) {
+                // For localhost, always use plain ws:// protocol
+                if (window.location.hostname === 'localhost') {
+                    wsUrl = `ws://localhost:3000`;
+                } else {
+                    // For production, determine protocol based on current page
+                    const wsProtocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+                    wsUrl = `${wsProtocol}//${window.location.hostname}/ws`;
+                }
+            }
             
             console.log(`Connecting to signaling server at: ${wsUrl}`);
             this.ws = new WebSocket(wsUrl);
