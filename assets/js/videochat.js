@@ -8,9 +8,28 @@ const peerConfig = {
     config: {
         iceServers: [
             { urls: 'stun:stun.l.google.com:19302' },
-            { urls: 'stun:stun1.google.com:19302' }
+            { urls: 'stun:stun1.google.com:19302' },
+            { urls: 'stun:stun2.google.com:19302' },
+            { urls: 'stun:stun3.google.com:19302' },
+            { urls: 'stun:stun4.google.com:19302' },
+            { urls: 'stun:stun.voiparound.com' },
+            // Přidány veřejné STUN servery pro lepší průchod NAT
+            { urls: 'stun:global.stun.twilio.com:3478' }
+            
+            // Poznámka: V produkčním prostředí byste měli přidat i TURN servery
+            // pro případy, kdy STUN nestačí. TURN servery obvykle vyžadují autentizaci.
+            /* Příklad TURN serveru:
+            {
+                urls: 'turn:your-turn-server.com:3478',
+                username: 'username',
+                credential: 'password'
+            }
+            */
         ]
-    }
+    },
+    // Použití našeho signalizačního serveru místo standardního PeerJS serveru
+    host: window.location.hostname,
+    path: '/ws'
 };
 
 class VideoChat {
@@ -70,8 +89,34 @@ class VideoChat {
                 }, 100);
             }
 
-            // Initialize PeerJS
-            this.peer = new Peer(this.peerId, peerConfig);
+            // Initialize PeerJS with fallbacks
+            try {
+                console.log('Initializing PeerJS with config:', peerConfig);
+                
+                // Dynamicky určíme port na základě protokolu
+                const peerOpts = {...peerConfig};
+                if (window.location.protocol === 'https:') {
+                    peerOpts.secure = true;
+                    peerOpts.port = 443;  // Standardní port pro HTTPS
+                } else {
+                    peerOpts.secure = false;
+                    peerOpts.port = 80;   // Standardní port pro HTTP
+                }
+                
+                // Zvýšené timeouty pro lepší spolehlivost
+                peerOpts.pingInterval = 5000;  // 5 sekund mezi ping
+                
+                console.log('Final PeerJS config:', peerOpts);
+                this.peer = new Peer(this.peerId, peerOpts);
+            } catch (err) {
+                // Fallback na defaultní PeerJS server
+                console.error('Error initializing PeerJS with custom config:', err);
+                console.log('Trying fallback to default PeerJS server');
+                this.peer = new Peer(this.peerId, {
+                    debug: 2,
+                    config: peerConfig.config  // Zachováme ICE servery
+                });
+            }
 
             // Set up PeerJS event handlers
             this._setupPeerEvents();
@@ -239,11 +284,19 @@ class VideoChat {
             console.error('PeerJS error:', err);
             
             if (err.type === 'network' || err.type === 'server-error') {
-                alert('Network error: Cannot connect to the signaling server. Check your internet connection and try again.');
+                console.error('Network error: Cannot connect to the signaling server', err);
+                // Použijeme toast místo alert pro lepší UX
+                this._showToast('Network error', 'Cannot connect to the signaling server. Check your internet connection.', 'danger');
             } else if (err.type === 'peer-unavailable') {
                 console.log('Peer is unavailable, they may have left the room');
+                // Tuto chybu nebudeme zobrazovat uživateli, je běžná když někdo opustí místnost
+            } else if (err.type === 'webrtc') {
+                console.error('WebRTC connection error:', err);
+                this._showToast('Connection error', 'WebRTC connection failed. This may be due to firewall restrictions.', 'warning');
             } else {
-                alert('Connection error: ' + err);
+                console.error('PeerJS error:', err);
+                // Použijeme toast místo alert pro lepší UX
+                this._showToast('Connection error', err.message || 'Unknown connection error', 'warning');
             }
         });
 
@@ -322,9 +375,13 @@ class VideoChat {
                 switch(data.type) {
                     case 'user_joined':
                         console.log(`User ${data.userId} joined the room`);
-                        // Call the new user
+                        // Call the new user, ale s krátkým zpožděním, aby se peer správně inicializoval
                         if (this.peer && this.localStream) {
-                            this.callParticipant(data.userId);
+                            // Dáme peer time to initialize
+                            setTimeout(() => {
+                                console.log(`Delayed call to user ${data.userId}`);
+                                this.callParticipant(data.userId);
+                            }, 1000);
                         }
                         break;
                         
@@ -349,12 +406,18 @@ class VideoChat {
                         break;
                         
                     case 'room_users':
-                        // Call all existing users in the room
+                        // Call all existing users in the room, se zpožděním pro lepší inicializaci
                         if (data.users && data.users.length > 0) {
                             console.log('Existing users in room:', data.users);
-                            data.users.forEach(userId => {
+                            
+                            // Zpracujeme seznam uživatelů postupně s odstupem
+                            data.users.forEach((userId, index) => {
                                 if (this.peer && this.localStream) {
-                                    this.callParticipant(userId);
+                                    // Postupné volání s časovým odstupem pro každého uživatele
+                                    setTimeout(() => {
+                                        console.log(`Calling existing user ${userId} (${index + 1}/${data.users.length})`);
+                                        this.callParticipant(userId);
+                                    }, 500 * (index + 1)); // 500ms rozestup mezi voláními
                                 }
                             });
                         }
@@ -546,26 +609,74 @@ class VideoChat {
      * Call a new participant
      */
     callParticipant(userId) {
-        // Generate a unique peer ID for the participant
-        const peerId = userId + '_' + Date.now();
+        // Standardní formát PeerID je userId_timestamp
+        // Pokusíme se o více možností formátu PeerID
+        const possiblePeerIds = [
+            userId + '_' + Date.now(),   // Nejnovější formát
+            userId,                      // Jednoduchý formát
+            userId + '_'                 // Částečný formát
+        ];
         
-        // Make the call
-        const call = this.peer.call(peerId, this.localStream);
+        console.log(`Attempting to call user ${userId} with possible IDs:`, possiblePeerIds);
         
-        // Set up event handlers
-        call.on('stream', (remoteStream) => {
-            if (!this.peers[call.peer]) {
-                this.addVideoStream(call.peer, remoteStream);
-                this.peers[call.peer] = call;
+        let callAttempted = false;
+        
+        // Zkusíme všechny možné formáty PeerID
+        possiblePeerIds.forEach(peerId => {
+            try {
+                // Skip pokud již máme připojení s tímto peerem
+                if (Object.keys(this.peers).some(id => id.startsWith(userId + '_'))) {
+                    console.log(`Already connected to a peer with userId ${userId}`);
+                    return;
+                }
+                
+                if (!this.peer || !this.localStream) {
+                    console.error('PeerJS or localStream not initialized');
+                    return;
+                }
+                
+                console.log(`Attempting to call peer ${peerId}`);
+                const call = this.peer.call(peerId, this.localStream);
+                callAttempted = true;
+                
+                if (!call) {
+                    console.error(`Failed to initiate call to ${peerId}`);
+                    return;
+                }
+                
+                // Set up event handlers
+                call.on('stream', (remoteStream) => {
+                    console.log(`Received stream from ${call.peer}`);
+                    if (!this.peers[call.peer]) {
+                        this.addVideoStream(call.peer, remoteStream);
+                        this.peers[call.peer] = call;
+                    }
+                });
+                
+                call.on('close', () => {
+                    console.log(`Call with ${call.peer} closed`);
+                    this.removeVideoStream(call.peer);
+                    delete this.peers[call.peer];
+                });
+                
+                call.on('error', (err) => {
+                    console.error(`Call error with ${call.peer}:`, err);
+                    
+                    // Netlumíme tuto chybu, jen logujeme
+                    if (err.type !== 'peer-unavailable') {
+                        this.removeVideoStream(call.peer);
+                        delete this.peers[call.peer];
+                    }
+                });
+                
+            } catch (err) {
+                console.error(`Error calling peer ${peerId}:`, err);
             }
         });
         
-        call.on('close', () => {
-            this.removeVideoStream(call.peer);
-            delete this.peers[call.peer];
-        });
-        
-        return call;
+        if (!callAttempted) {
+            console.error(`Could not make any call attempts to user ${userId}`);
+        }
     }
 
     /**
@@ -793,6 +904,60 @@ class VideoChat {
             // Navigate back to home page anyway
             window.location.href = '/';
         });
+    }
+    
+    /**
+     * Show toast notification instead of alert
+     * @param {string} title - Toast title
+     * @param {string} message - Toast message
+     * @param {string} type - Bootstrap color type (success, danger, warning, info)
+     */
+    _showToast(title, message, type = 'info') {
+        try {
+            // Create toast element
+            const toast = document.createElement('div');
+            toast.className = `toast position-fixed bottom-0 end-0 m-3 bg-${type} text-white`;
+            toast.setAttribute('role', 'alert');
+            toast.setAttribute('aria-live', 'assertive');
+            toast.setAttribute('aria-atomic', 'true');
+            
+            toast.innerHTML = `
+                <div class="toast-header bg-${type} text-white">
+                    <strong class="me-auto">${title}</strong>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="toast" aria-label="Close"></button>
+                </div>
+                <div class="toast-body">
+                    ${message}
+                </div>
+            `;
+            
+            document.body.appendChild(toast);
+            
+            // Initialize and show using Bootstrap
+            if (window.bootstrap && window.bootstrap.Toast) {
+                const bsToast = new bootstrap.Toast(toast, {
+                    autohide: true,
+                    delay: 5000
+                });
+                bsToast.show();
+            } else {
+                // Fallback if Bootstrap not available
+                toast.style.display = 'block';
+                setTimeout(() => {
+                    toast.remove();
+                }, 5000);
+            }
+            
+            // Remove from DOM after hiding
+            toast.addEventListener('hidden.bs.toast', () => {
+                toast.remove();
+            });
+            
+        } catch (e) {
+            console.error('Error showing toast:', e);
+            // Fallback to console if toast fails
+            console.log(`${title}: ${message}`);
+        }
     }
     
     /**
