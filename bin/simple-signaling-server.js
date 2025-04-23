@@ -9,7 +9,7 @@ const WebSocket = require('ws');
 
 // Configuration
 const PORT = process.env.SIGNALING_PORT || 3000;
-const HOST = process.env.SIGNALING_HOST || '0.0.0.0'; // Bind to all network interfaces
+const HOST = process.env.SIGNALING_HOST || '127.0.0.1'; // Bind to all network interfaces
 
 // Create WebSocket server with increased verbosity
 const wss = new WebSocket.Server({
