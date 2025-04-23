@@ -9,10 +9,13 @@ parameters:
     app.signaling_server_url: '%env(default:default_signaling_server_url:SIGNALING_SERVER_URL)%'
     default_signaling_server_url: ~
 
-    # Parametry pro TURN servery
+    # Parametry pro Metered API
     # Defaultní hodnoty pro případ, že proměnné prostředí nejsou nastaveny
-    env(METERED_TURN_USERNAME): 'turn_username'
-    env(METERED_TURN_CREDENTIAL): 'turn_credential'
+    env(METERED_API_KEY): 'metered_api_key'
+    env(METERED_SUBDOMAIN): 'softcode'
+    
+    # Konfigurace pro Metered
+    app.metered_subdomain: '%env(METERED_SUBDOMAIN)%'
 
 services:
     # default configuration for services in *this* file
@@ -32,8 +35,7 @@ services:
     # add more service definitions when explicit configuration is needed
     # please note that last definitions always *replace* previous ones
 
-    # Definice TurnCredentialsController s parametry pro TURN servery
+    # Definice TurnCredentialsController s parametry pro Metered API
     App\Controller\TurnCredentialsController:
         arguments:
-            $meteredUsername: '%env(METERED_TURN_USERNAME)%'
-            $meteredCredential: '%env(METERED_TURN_CREDENTIAL)%'
+            $meteredApiKey: '%env(METERED_API_KEY)%'
