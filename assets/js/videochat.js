@@ -425,22 +425,34 @@ class VideoChat {
                 return;
             }
             
-            // Fallback to REST API
+            // Fallback to REST API - but only if we need to
+            // Skip API fallback as it's not critical and usually fails with auth errors
+            console.log('WebSocket unavailable, skipping presence announcement (not critical)');
+            
+            // If you need to enable API fallback, uncomment this block:
+            /*
             fetch('/api/rooms/' + this.roomId + '/announce', {
                 method: 'POST',
                 headers: {
-                    'Content-Type': 'application/json'
+                    'Content-Type': 'application/json',
+                    // Get CSRF token from meta tag if available
+                    'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.content || ''
                 },
                 credentials: 'same-origin'  // Send cookies for authentication
             })
             .then(response => {
                 if (!response.ok) {
+                    if (response.status === 401) {
+                        console.log('API authentication required, skipping presence announcement (not critical)');
+                        return { status: 'auth_required' };
+                    }
                     throw new Error(`HTTP error ${response.status}`);
                 }
                 return response.json();
             })
             .then(data => console.log('Announced presence via API:', data))
             .catch(error => console.error('Error announcing presence:', error));
+            */
         } catch (error) {
             console.error('Error in announcePresence:', error);
         }
