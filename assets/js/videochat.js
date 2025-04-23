@@ -349,9 +349,25 @@ class VideoChat {
             this.ws.onerror = (error) => {
                 console.error('WebSocket error:', error);
                 
-                // Show error message
+                // Show error message with debugging info
                 const remoteVideos = document.getElementById('remote-videos');
                 if (remoteVideos) {
+                    // Try to get detailed error info
+                    let wsInfo = '';
+                    try {
+                        wsInfo = `
+                            <p class="mt-2 text-start">Debug Info:</p>
+                            <ul class="text-start">
+                                <li>URL: <code>${this.ws.url}</code></li>
+                                <li>ReadyState: <code>${this.ws.readyState}</code> (0=connecting, 1=open, 2=closing, 3=closed)</li>
+                                <li>Protocol: <code>${window.location.protocol}</code></li>
+                                <li>Browser: <code>${navigator.userAgent}</code></li>
+                            </ul>
+                        `;
+                    } catch (e) {
+                        wsInfo = '<p>Error getting WebSocket debug info</p>';
+                    }
+                    
                     remoteVideos.innerHTML = `
                         <div class="alert alert-danger my-3 p-3 text-center">
                             <h4 class="alert-heading"><i class="fas fa-exclamation-triangle"></i> Connection Error</h4>
@@ -359,7 +375,11 @@ class VideoChat {
                             <hr>
                             <p class="mb-0">Please make sure the signaling server is running:</p>
                             <pre class="text-start bg-dark text-light p-2 mt-2">bin/run-signaling.sh</pre>
+                            <div class="text-start bg-dark text-light p-2 mt-3 small">
+                                ${wsInfo}
+                            </div>
                             <button class="btn btn-primary mt-3" onclick="window.location.reload()">Reload Page</button>
+                            <button class="btn btn-outline-secondary mt-3 ms-2" onclick="window.location.href='/room/${videoChatApp.roomSlug}?direct=true'">Try Direct Connection</button>
                         </div>
                     `;
                 }
