@@ -139,7 +139,7 @@
 <script>
     // Using a unique namespace to avoid conflicts with Turbo
     window.videoChatApp = window.videoChatApp || {};
-    
+
     // Store room information in our namespace
     videoChatApp.roomId = {{ room.id }};
     videoChatApp.roomSlug = "{{ room.slug }}";
@@ -147,7 +147,7 @@
     videoChatApp.currentUsername = "{{ app.user ? app.user.username : 'Guest' }}";
     videoChatApp.isOwner = {{ app.user and app.user.id == room.owner.id ? 'true' : 'false' }};
     videoChatApp.csrfToken = "{{ csrf_token('turn_credentials') }}";
-    
+
     // Přidat autentikační token, který můžeme poslat v požadavku pro TURN credentials
     // Toto je důležité pro případy, kdy cookie-based autentizace selže
     {% if app.user %}

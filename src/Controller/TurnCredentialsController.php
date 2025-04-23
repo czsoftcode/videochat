@@ -27,10 +27,29 @@ class TurnCredentialsController extends AbstractController
     }
 
     #[Route('/api/turn-credentials', name: 'api_turn_credentials', methods: ['GET'])]
+    // V src/Controller/TurnCredentialsController.php
     public function getTurnCredentials(Request $request): JsonResponse
     {
-        // Zjednodušený přístup - vrátíme přímo výsledek z Metered API
-        return $this->getMeteredTurnCredentials($request);
+        try {
+            // API klíč je bezpečně uložen na serveru
+            $apiUrl = self::METERED_TURN_API_URL . '?apiKey=' . urlencode($this->meteredApiKey);
+
+            $response = $this->httpClient->request('GET', $apiUrl, [
+                'timeout' => 5,
+                'headers' => [
+                    'Accept' => 'application/json'
+                ]
+            ]);
+
+            if ($response->getStatusCode() === 200) {
+                $data = $response->toArray();
+                return $this->json($data);
+            }
+        } catch (\Exception $e) {
+            error_log('Chyba při získávání TURN credentials: ' . $e->getMessage());
+        }
+
+        return $this->getFallbackIceServers();
     }
 
     #[Route('/api/turn-credentials', name: 'api_turn_credentials_post', methods: ['POST'])]
@@ -43,30 +62,14 @@ class TurnCredentialsController extends AbstractController
     /**
      * Získá dočasné TURN credentials pomocí Metered API
      */
+    // V metodě getMeteredTurnCredentials()
     private function getMeteredTurnCredentials(Request $request): JsonResponse
     {
-        // Logování pro diagnostiku
-        error_log('Začínám získávat TURN credentials');
-        error_log('API klíč nastaven: ' . (!empty($this->meteredApiKey) && $this->meteredApiKey !== 'metered_api_key' ? 'ANO' : 'NE'));
-
-        // Pokud nemáme HTTP klienta nebo API klíč, použijeme záložní přístup
-        if (!$this->httpClient || empty($this->meteredApiKey) || $this->meteredApiKey === 'metered_api_key') {
-            error_log('Chybí HTTP klient nebo API klíč, používám záložní servery');
-            return $this->getFallbackIceServers();
-        }
-
+        // Přímé přesměrování na Metered API
         try {
-            // Generujeme identifikátor uživatele - může být užitečné pro logování
-            $userId = $this->getUser() ? (string) $this->getUser()->getId() : 'guest-' . uniqid();
-
             // Použijeme URL pro Metered TURN API s vlastní subdoménou a API klíčem
             $apiUrl = self::METERED_TURN_API_URL . '?apiKey=' . urlencode($this->meteredApiKey);
 
-            // Zalogujeme volání pro diagnostiku (skryjeme API klíč v logu)
-            $safeUrl = self::METERED_TURN_API_URL . '?apiKey=***********';
-            error_log('Volám Metered TURN API: ' . $safeUrl . ' (user: ' . $userId . ')');
-
-            // Vytvoření HTTP požadavku na Metered API
             $response = $this->httpClient->request('GET', $apiUrl, [
                 'timeout' => 5,
                 'headers' => [
@@ -75,36 +78,23 @@ class TurnCredentialsController extends AbstractController
                 ]
             ]);
 
-            // Kontrola úspěšné odpovědi
+            // Pouze vracíme data z Metered API přímo klientovi
             if ($response->getStatusCode() === 200) {
                 $data = $response->toArray();
-
-                // Zalogujeme část odpovědi pro ověření
-                error_log('Úspěšná odpověď od Metered API: ' . substr(json_encode($data), 0, 100) . '...');
-
-                // Přidáme cache control hlavičky
                 $jsonResponse = $this->json($data);
-                $jsonResponse->headers->set('Cache-Control', 'no-cache, no-store, must-revalidate');
-                $jsonResponse->headers->set('Pragma', 'no-cache');
-                $jsonResponse->headers->set('Expires', '0');
 
-                // Přidáme CORS hlavičky pro zabránění problémům s různými doménami
+                // Nastavíme správné CORS a Cache hlavičky
+                $jsonResponse->headers->set('Cache-Control', 'no-cache, no-store, must-revalidate');
                 $jsonResponse->headers->set('Access-Control-Allow-Origin', '*');
-                $jsonResponse->headers->set('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
-                $jsonResponse->headers->set('Access-Control-Allow-Headers', 'Content-Type, Authorization');
 
                 return $jsonResponse;
             }
-
-            // Pokud API vrátí chybu, logujeme ji a použijeme záložní přístup
-            error_log('Chyba při získávání TURN credentials z Metered API: ' . $response->getStatusCode() . ' - ' . $response->getContent(false));
-            return $this->getFallbackIceServers();
-
         } catch (\Exception $e) {
             // V případě chyby použijeme záložní přístup
             error_log('Výjimka při získávání TURN credentials: ' . $e->getMessage());
-            return $this->getFallbackIceServers();
         }
+
+        return $this->getFallbackIceServers();
     }
 
     /**

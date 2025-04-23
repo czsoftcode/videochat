@@ -251,7 +251,7 @@ class RoomController extends AbstractController
         return $this->render('room/show.html.twig', [
             'room' => $room,
             'signaling_server_url' => $this->signalingServerUrl,
-            'metered_api_key' => $this->params->get('app.metered_api_key')
+            'metered_api_key' => $this->params->get('app.metered_api_key') // Předáváme API klíč do šablony
         ]);
     }
 

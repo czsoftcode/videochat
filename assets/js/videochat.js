@@ -3,99 +3,45 @@
  */
 
 // Získání TURN serverů pro ICE konfiguraci
+// V assets/js/videochat.js
 async function getTurnServers() {
     try {
-        console.log('Získávám TURN credentials...');
+        console.log('Získávám TURN credentials z vlastního API...');
 
-        // Pro přímý přístup k Metered API potřebujeme API klíč
-        // Nejlepší je získat ho ze strany serveru, aby nebyl vystaven v klientském kódu
-
-        // Varianta 1: Použít lokální API endpoint, který bezpečně předá požadavek na Metered
-        const localApiUrl = new URL('/api/turn-credentials', window.location.origin);
-        localApiUrl.searchParams.append('t', Date.now()); // Přidáme timestamp pro vyhnutí se cache
-
-        console.log(`Volám lokální API endpoint: ${localApiUrl.toString()}`);
-
-        const response = await fetch(localApiUrl.toString(), {
-            method: 'GET',
-            headers: {
-                'Accept': 'application/json',
-                'X-Requested-With': 'XMLHttpRequest'
-            },
-            credentials: 'include' // Důležité - zajistí odeslání cookies pro autentizaci
-        });
+        // Volání našeho backend endpointu
+        const response = await fetch('/api/turn-credentials');
 
         if (!response.ok) {
-            const errorText = await response.text();
-            console.error('Chyba při získávání TURN serverů z lokálního API:', errorText);
-
-            // Varianta 2: Přímý přístup k Metered API (vyžaduje API klíč v URL)
-            // POZNÁMKA: Tato varianta exponuje API klíč v síťovém požadavku, což není bezpečné
-            // Používejte pouze pro testování nebo jako fallback
-
-            console.log('Zkouším přímý přístup k Metered API');
-
-            // POZNÁMKA: API klíč by měl být ideálně získán ze serveru, ne hardcoded
-            // Tato implementace předpokládá, že někde v aplikaci máte API klíč definovaný
-            const apiKey = videoChatApp.meteredApiKey || window.METERED_API_KEY;
-
-            if (!apiKey) {
-                console.error('Chybí API klíč pro přímý přístup k Metered API');
-                throw new Error('Chybí API klíč pro Metered API');
-            }
-
-            const meteredUrl = `https://softcode.metered.live/api/v1/turn/credentials?apiKey=${apiKey}`;
-            console.log('Přistupuji přímo k Metered API (URL skryta pro bezpečnost)');
-
-            const directResponse = await fetch(meteredUrl, {
-                method: 'GET',
-                headers: {
-                    'Accept': 'application/json'
-                }
-            });
-
-            if (!directResponse.ok) {
-                console.error('Přímý přístup k Metered API také selhal:', await directResponse.text());
-                throw new Error('Nebylo možné získat TURN credentials.');
-            }
-
-            const directData = await directResponse.json();
-            console.log('Přímý přístup k Metered API úspěšný!');
-            return directData;
+            throw new Error(`HTTP error ${response.status}`);
         }
 
-        const data = await response.json();
+        const iceServers = await response.json();
+        console.log(`Úspěšně získáno ${iceServers.length} TURN/STUN serverů`);
 
-        // Ověřit, že máme správné TURN servery
-        if (data && Array.isArray(data)) {
-            console.log('Úspěšně získány ICE servery:', data.length);
-            return data;
-        } else {
-            console.error('Neočekávaný formát dat z API:', data);
-            throw new Error('Neplatný formát dat z API');
-        }
-
+        return iceServers;
     } catch (error) {
-        console.error('Chyba při získávání TURN serverů:', error);
-
-        // Vrátíme alespoň STUN servery jako fallback
-        console.warn('Používám záložní STUN servery');
-        return [
-            { urls: 'stun:stun.l.google.com:19302' },
-            { urls: 'stun:stun1.l.google.com:19302' },
-            { urls: 'stun:stun2.l.google.com:19302' },
-            { urls: 'stun:stun.relay.metered.ca:80' }
-        ];
+        console.error('Chyba při získávání TURN credentials:', error);
+        return getFallbackIceServers();
     }
+}
+
+// Záložní ICE servery pro případ selhání
+function getFallbackIceServers() {
+    console.warn('Používám záložní STUN servery');
+    return [
+        { urls: 'stun:stun.l.google.com:19302' },
+        { urls: 'stun:stun1.l.google.com:19302' },
+        { urls: 'stun:stun2.l.google.com:19302' },
+        { urls: 'stun:stun.relay.metered.ca:80' }
+    ];
 }
 
 // PeerJS configuration
 const peerConfig = {
     debug: 2,
     config: {
-        iceServers: await getTurnServers(),
-        // Vynutit použití TURN serverů
-        iceTransportPolicy: 'relay'
+        iceServers: await getTurnServers(), // Tato funkce nám vrátí potřebné servery
+        iceTransportPolicy: 'all' // Změníme z 'relay' na 'all' pro lepší výkon
     }
 };
 
