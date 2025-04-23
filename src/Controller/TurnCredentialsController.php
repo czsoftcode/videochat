@@ -22,32 +22,20 @@ class TurnCredentialsController extends AbstractController
     }
 
     #[Route('/api/turn-credentials', name: 'api_turn_credentials', methods: ['GET'])]
-    public function getTurnCredentials(): JsonResponse
+    public function getTurnCredentials(
+        string $meteredUsername,
+        string $meteredCredential
+    ): JsonResponse
     {
-        try {
-            $response = $this->httpClient->request('POST', 'https://api.metered.ca/v1/turn/credentials', [
-                'query' => [
-                    'apiKey' => $this->meteredApiKey
-                ]
-            ]);
-
-            $credentials = $response->toArray();
-
-            // Transformace na formát kompatibilní s WebRTC
-            $iceServers = array_map(function($server) {
-                return [
-                    'urls' => $server['urls'],
-                    'username' => $server['username'],
-                    'credential' => $server['credential']
-                ];
-            }, $credentials);
-
-            return $this->json($iceServers);
-        } catch (\Exception $e) {
-            // Fallback na STUN servery v případě selhání
-            return $this->json([
-                ['urls' => 'stun:stun.l.google.com:19302']
-            ]);
-        }
+        return $this->json([
+            [
+                'urls' => 'turns:eu.relay.metered.ca:443?transport=tcp',
+                'username' => $meteredUsername,
+                'credential' => $meteredCredential
+            ],
+            [
+                'urls' => 'stun:stun.l.google.com:19302'
+            ]
+        ]);
     }
 }

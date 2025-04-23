@@ -31,4 +31,5 @@ services:
 
     App\Controller\TurnCredentialsController:
         arguments:
-            $meteredApiKey: '%env(METERED_TURN_API_KEY)%'
+            $meteredUsername: '%env(METERED_TURN_USERNAME)%'
+            $meteredCredential: '%env(METERED_TURN_CREDENTIAL)%'
