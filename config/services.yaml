@@ -39,3 +39,5 @@ services:
     App\Controller\TurnCredentialsController:
         arguments:
             $meteredApiKey: '%env(METERED_API_KEY)%'
+            $csrfTokenManager: '@security.csrf.token_manager'
+            $httpClient: '@http_client'

@@ -15,12 +15,12 @@ class TurnCredentialsController extends AbstractController
      * TURN server credentials and CSRF token manager
      */
     public function __construct(
-        private string $meteredUsername,
-        private string $meteredCredential,
-        private ?CsrfTokenManagerInterface $csrfTokenManager = null
+        private string $meteredApiKey,
+        private ?CsrfTokenManagerInterface $csrfTokenManager = null,
+        private ?HttpClientInterface $httpClient = null
     ) {
-        // Pokud csrfTokenManager není poskytnut, nastavíme jej na null
-        // To umožní službě fungovat i když CSRF není k dispozici
+        // Pokud csrfTokenManager nebo httpClient není poskytnut, nastavíme je na null
+        // To umožní službě fungovat i když CSRF nebo HttpClient není k dispozici
     }
 
     #[Route('/api/turn-credentials', name: 'api_turn_credentials', methods: ['GET'])]
