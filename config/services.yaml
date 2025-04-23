@@ -12,10 +12,6 @@ parameters:
     # Parametry pro Metered API
     # Defaultní hodnoty pro případ, že proměnné prostředí nejsou nastaveny
     env(METERED_API_KEY): 'metered_api_key'
-    env(METERED_DOMAIN): 'softcode.metered.live'
-    
-    # Konfigurace pro Metered
-    app.metered_domain: '%env(METERED_DOMAIN)%'
 
 services:
     # default configuration for services in *this* file
