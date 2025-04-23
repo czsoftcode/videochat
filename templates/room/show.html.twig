@@ -146,6 +146,15 @@
     videoChatApp.currentUserId = {{ app.user ? app.user.id : 'null' }};
     videoChatApp.currentUsername = "{{ app.user ? app.user.username : 'Guest' }}";
     videoChatApp.isOwner = {{ app.user and app.user.id == room.owner.id ? 'true' : 'false' }};
+    videoChatApp.csrfToken = "{{ csrf_token('turn_credentials') }}";
+    
+    // Přidat autentikační token, který můžeme poslat v požadavku pro TURN credentials
+    // Toto je důležité pro případy, kdy cookie-based autentizace selže
+    {% if app.user %}
+    videoChatApp.authToken = "{{ app.user.id ~ '_' ~ csrf_token('user_auth_' ~ app.user.id) }}";
+    {% else %}
+    videoChatApp.authToken = "guest_{{ csrf_token('guest_auth') }}";
+    {% endif %}
 </script>
 
 {# Přímé vložení potřebného kódu pro inicializaci VideoChat třídy #}
@@ -298,21 +307,73 @@ if (typeof window.VideoChat !== 'function') {
         // Získání TURN serverů pro ICE konfiguraci
         async getTurnServers() {
             try {
-                const response = await fetch('/api/turn-credentials', {
+                // Použijeme tokeny z videoChatApp namespace pro autentizaci
+                const csrfToken = videoChatApp.csrfToken || '';
+                const authToken = videoChatApp.authToken || '';
+                
+                // Sestavíme URL s parametry
+                const url = new URL('/api/turn-credentials', window.location.origin);
+                if (csrfToken) {
+                    url.searchParams.append('csrf_token', csrfToken);
+                }
+                if (authToken) {
+                    url.searchParams.append('auth_token', authToken);
+                }
+                
+                // Přidáváme nezbytné parametry pro autentizaci
+                const response = await fetch(url.toString(), {
+                    method: 'GET',
                     headers: {
-                        'Accept': 'application/json'
-                    }
+                        'Accept': 'application/json',
+                        'X-Requested-With': 'XMLHttpRequest',
+                        'Referer': window.location.href
+                    },
+                    // Důležité - zajistí odeslání cookies pro autentizaci
+                    credentials: 'same-origin'
                 });
                 
                 if (!response.ok) {
                     const errorText = await response.text();
                     console.error('Chyba při získávání TURN serverů:', errorText);
+                    
+                    // Pokud se první pokus nezdařil, zkusíme znovu s jinými parametry
+                    if (response.status === 401) {
+                        console.log('Zkouším alternativní způsob autentizace pro TURN servery');
+                        
+                        // Použijeme jednodušší URL bez parametrů - spoléháme jen na cookies
+                        const retryResponse = await fetch('/api/turn-credentials', {
+                            method: 'GET',
+                            headers: {
+                                'Accept': 'application/json'
+                            },
+                            credentials: 'same-origin'
+                        });
+                        
+                        if (retryResponse.ok) {
+                            const retryData = await retryResponse.json();
+                            console.log('Druhý pokus úspěšný!');
+                            return retryData;
+                        }
+                    }
+                    
                     throw new Error(`Chyba HTTP: ${response.status}, zpráva: ${errorText}`);
                 }
                 
-                return await response.json();
+                const data = await response.json();
+                
+                // Ověřit, že máme správné TURN servery
+                if (data.length <= 1) {
+                    console.warn('Obdrželi jsme pouze STUN servery, TURN servery chybí. Videohovor může mít problémy s připojením za NATem.');
+                } else {
+                    console.log('Úspěšně získány TURN servery:', data.length);
+                }
+                
+                return data;
             } catch (error) {
                 console.error('Chyba při získávání TURN serverů:', error);
+                
+                // Vrátíme alespoň STUN server jako fallback
+                console.warn('Používám záložní STUN servery');
                 return [{ urls: 'stun:stun.l.google.com:19302' }];
             }
         }
