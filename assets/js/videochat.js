@@ -7,14 +7,16 @@ async function getTurnServers() {
         const response = await fetch('/api/turn-credentials', {
             headers: {
                 'X-Requested-With': 'XMLHttpRequest',
-                // Přidejte CSRF token, pokud používáte Symfony formuláře
-                'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.content
-            },
-            credentials: 'same-origin' // Důležité pro cookies/session
+                // Případně přidejte další hlavičky dle vaší konfigurace
+                'Accept': 'application/json'
+            }
         });
 
         if (!response.ok) {
+            // Podrobnější diagnostika chyby
             const errorText = await response.text();
+            console.error('Full error response:', errorText);
+
             throw new Error(`HTTP error! status: ${response.status}, message: ${errorText}`);
         }
 
