@@ -2,35 +2,89 @@
  * VideoChat WebRTC functionality
  */
 
+// Získání TURN serverů pro ICE konfiguraci
 async function getTurnServers() {
     try {
-        const response = await fetch('/api/turn-credentials', {
+        console.log('Získávám TURN credentials...');
+
+        // Pro přímý přístup k Metered API potřebujeme API klíč
+        // Nejlepší je získat ho ze strany serveru, aby nebyl vystaven v klientském kódu
+
+        // Varianta 1: Použít lokální API endpoint, který bezpečně předá požadavek na Metered
+        const localApiUrl = new URL('/api/turn-credentials', window.location.origin);
+        localApiUrl.searchParams.append('t', Date.now()); // Přidáme timestamp pro vyhnutí se cache
+
+        console.log(`Volám lokální API endpoint: ${localApiUrl.toString()}`);
+
+        const response = await fetch(localApiUrl.toString(), {
+            method: 'GET',
             headers: {
-                'X-Requested-With': 'XMLHttpRequest',
-                // Případně přidejte další hlavičky dle vaší konfigurace
-                'Accept': 'application/json'
-            }
+                'Accept': 'application/json',
+                'X-Requested-With': 'XMLHttpRequest'
+            },
+            credentials: 'include' // Důležité - zajistí odeslání cookies pro autentizaci
         });
 
         if (!response.ok) {
-            // Podrobnější diagnostika chyby
             const errorText = await response.text();
-            console.error('Full error response:', errorText);
+            console.error('Chyba při získávání TURN serverů z lokálního API:', errorText);
 
-            throw new Error(`HTTP error! status: ${response.status}, message: ${errorText}`);
+            // Varianta 2: Přímý přístup k Metered API (vyžaduje API klíč v URL)
+            // POZNÁMKA: Tato varianta exponuje API klíč v síťovém požadavku, což není bezpečné
+            // Používejte pouze pro testování nebo jako fallback
+
+            console.log('Zkouším přímý přístup k Metered API');
+
+            // POZNÁMKA: API klíč by měl být ideálně získán ze serveru, ne hardcoded
+            // Tato implementace předpokládá, že někde v aplikaci máte API klíč definovaný
+            const apiKey = videoChatApp.meteredApiKey || window.METERED_API_KEY;
+
+            if (!apiKey) {
+                console.error('Chybí API klíč pro přímý přístup k Metered API');
+                throw new Error('Chybí API klíč pro Metered API');
+            }
+
+            const meteredUrl = `https://softcode.metered.live/api/v1/turn/credentials?apiKey=${apiKey}`;
+            console.log('Přistupuji přímo k Metered API (URL skryta pro bezpečnost)');
+
+            const directResponse = await fetch(meteredUrl, {
+                method: 'GET',
+                headers: {
+                    'Accept': 'application/json'
+                }
+            });
+
+            if (!directResponse.ok) {
+                console.error('Přímý přístup k Metered API také selhal:', await directResponse.text());
+                throw new Error('Nebylo možné získat TURN credentials.');
+            }
+
+            const directData = await directResponse.json();
+            console.log('Přímý přístup k Metered API úspěšný!');
+            return directData;
         }
 
-        const iceServers = await response.json();
+        const data = await response.json();
 
-        console.log('Received TURN servers:', iceServers);
+        // Ověřit, že máme správné TURN servery
+        if (data && Array.isArray(data)) {
+            console.log('Úspěšně získány ICE servery:', data.length);
+            return data;
+        } else {
+            console.error('Neočekávaný formát dat z API:', data);
+            throw new Error('Neplatný formát dat z API');
+        }
 
-        return iceServers.length > 0 ? iceServers : [
-            { urls: 'stun:stun.l.google.com:19302' }
-        ];
     } catch (error) {
-        console.error('Failed to get TURN servers', error);
+        console.error('Chyba při získávání TURN serverů:', error);
+
+        // Vrátíme alespoň STUN servery jako fallback
+        console.warn('Používám záložní STUN servery');
         return [
-            { urls: 'stun:stun.l.google.com:19302' }
+            { urls: 'stun:stun.l.google.com:19302' },
+            { urls: 'stun:stun1.l.google.com:19302' },
+            { urls: 'stun:stun2.l.google.com:19302' },
+            { urls: 'stun:stun.relay.metered.ca:80' }
         ];
     }
 }

@@ -11,7 +11,7 @@ parameters:
 
     # Parametry pro Metered API
     # Defaultní hodnoty pro případ, že proměnné prostředí nejsou nastaveny
-    env(METERED_API_KEY): 'metered_api_key'
+    app.metered_api_key: '%env(METERED_API_KEY)%'
 
 services:
     # default configuration for services in *this* file
@@ -34,6 +34,6 @@ services:
     # Definice TurnCredentialsController s parametry pro Metered API
     App\Controller\TurnCredentialsController:
         arguments:
-            $meteredApiKey: '%env(METERED_API_KEY)%'
+            $meteredApiKey: '%app.metered_api_key%'
             $csrfTokenManager: '@security.csrf.token_manager'
             $httpClient: '@http_client'

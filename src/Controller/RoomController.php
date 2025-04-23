@@ -17,6 +17,7 @@ use Symfony\Component\Routing\Generator\UrlGeneratorInterface;
 use Symfony\Component\Security\Http\Attribute\IsGranted;
 use Symfony\Component\String\Slugger\SluggerInterface;
 use Symfony\Component\Validator\Validator\ValidatorInterface;
+use Symfony\Component\DependencyInjection\ParameterBag\ParameterBagInterface;
 
 class RoomController extends AbstractController
 {
@@ -27,6 +28,7 @@ class RoomController extends AbstractController
     private $hub;
 
     private $signalingServerUrl;
+    private $params;
 
     public function __construct(
         EntityManagerInterface $entityManager,
@@ -34,7 +36,8 @@ class RoomController extends AbstractController
         SluggerInterface $slugger,
         ValidatorInterface $validator,
         HubInterface $hub,
-        ?string $signalingServerUrl = null
+        ?string $signalingServerUrl = null,
+        ParameterBagInterface $params
     ) {
         $this->entityManager = $entityManager;
         $this->roomRepository = $roomRepository;
@@ -42,6 +45,7 @@ class RoomController extends AbstractController
         $this->validator = $validator;
         $this->hub = $hub;
         $this->signalingServerUrl = $signalingServerUrl;
+        $this->params = $params;
     }
 
     #[Route('/', name: 'app_home', methods: ['GET'])]
@@ -242,7 +246,13 @@ class RoomController extends AbstractController
         }
         
         // Otherwise show options page
-        return $this->redirectToRoute('app_room_direct_access', ['slug' => $slug]);
+        //return $this->redirectToRoute('app_room_direct_access', ['slug' => $slug]);
+
+        return $this->render('room/show.html.twig', [
+            'room' => $room,
+            'signaling_server_url' => $this->signalingServerUrl,
+            'metered_api_key' => $this->params->get('app.metered_api_key')
+        ]);
     }
 
     #[Route('/room/{slug}/join', name: 'app_room_join', methods: ['GET', 'POST'])]
