@@ -59,10 +59,30 @@
                     <button class="btn btn-outline-secondary" type="button" id="copy-link-btn">Copy</button>
                 </div>
                 
-                {% if room.isPrivate and room.password %}
+                {% if room.isPrivate %}
                     <div class="alert alert-warning">
-                        <strong>Password Required:</strong> 
-                        <p class="mb-0">This is a private room. Share this password with invited users: <strong>{{ room.password }}</strong></p>
+                        <strong>Password Required:</strong>
+                        <p class="mb-0">This is a private room. Users will need to enter a password to join.</p>
+                        {% if room.password %}
+                        <div class="mt-2">
+                            <button class="btn btn-sm btn-outline-warning" id="password-toggle-btn">
+                                <i class="fa fa-eye"></i> Show Room Password
+                            </button>
+                            <div id="room-password" class="mt-2" style="display: none;">
+                                <div class="input-group">
+                                    <input type="text" class="form-control form-control-sm" id="password-display" value="{{ room.password }}" readonly>
+                                    <button class="btn btn-sm btn-outline-secondary" id="copy-password-btn">Copy</button>
+                                </div>
+                            </div>
+                        </div>
+                        {% if app.user and room.owner == app.user %}
+                        <div class="mt-2">
+                            <a href="{{ path('app_room_edit_password', {slug: room.slug}) }}" class="btn btn-sm btn-outline-secondary">
+                                <i class="fa fa-key"></i> Change Room Password
+                            </a>
+                        </div>
+                        {% endif %}
+                        {% endif %}
                     </div>
                 {% endif %}
             </div>
@@ -95,26 +115,18 @@
 {% block javascripts %}
 {{ parent() }}
 <script>
+    // Copy link button functionality
     document.addEventListener('DOMContentLoaded', function() {
         const copyLinkBtn = document.getElementById('copy-link-btn');
         const shareLinkInput = document.getElementById('share-link');
         
-        copyLinkBtn.addEventListener('click', function() {
-            shareLinkInput.select();
-            document.execCommand('copy');
-            
-            // Change button text temporarily
-            const originalText = copyLinkBtn.textContent;
-            copyLinkBtn.textContent = 'Copied!';
-            copyLinkBtn.classList.add('btn-success');
-            copyLinkBtn.classList.remove('btn-outline-secondary');
-            
-            setTimeout(function() {
-                copyLinkBtn.textContent = originalText;
-                copyLinkBtn.classList.remove('btn-success');
-                copyLinkBtn.classList.add('btn-outline-secondary');
-            }, 2000);
-        });
+        if (copyLinkBtn && shareLinkInput) {
+            copyLinkBtn.addEventListener('click', function() {
+                if (window.passwordManager) {
+                    window.passwordManager.copyToClipboard(shareLinkInput, copyLinkBtn);
+                }
+            });
+        }
     });
 </script>
 {% endblock %}

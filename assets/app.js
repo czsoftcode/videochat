@@ -7,4 +7,13 @@ import './bootstrap.js';
  */
 import './styles/app.css';
 
-console.log('This log comes from assets/app.js - welcome to AssetMapper! 🎉');
+// Important: The order matters here, as later scripts depend on earlier ones
+import './js/videochat.js';
+import './js/room-ui.js';
+import './js/room-controller.js';
+import './js/room-init.js';
+import './js/theme-switcher.js';
+import './js/password-manager.js';
+import './js/page-lifecycle.js';
+
+console.log('VideoChat application initialized');

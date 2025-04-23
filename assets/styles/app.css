@@ -1,3 +1,241 @@
+/* Main color scheme variables */
+:root {
+    /* Primary colors */
+    --primary-color: #0d6efd;
+    --primary-color-hover: #0b5ed7;
+    --primary-color-light: #cfe2ff;
+    
+    /* Backgrounds */
+    --bg-body: #f0f9ff;
+    --bg-card: #ffffff;
+    --bg-dark: #111111;
+    --bg-darker: #000000;
+    --bg-light: #f8f9fa;
+    --bg-hover: #f0f0f0;
+    
+    /* Text colors */
+    --text-primary: #212529;
+    --text-secondary: #6c757d;
+    --text-light: #f8f9fa;
+    --text-muted: #6c757d;
+    --text-danger: #dc3545;
+    
+    /* Border colors */
+    --border-color: rgba(0, 0, 0, 0.15);
+    --border-color-light: #e9ecef;
+    
+    /* Shadow */
+    --shadow-color: rgba(0, 0, 0, 0.175);
+    --shadow: 0 0.5rem 1rem var(--shadow-color);
+    
+    /* Video elements */
+    --video-border: white;
+    --video-label-bg: rgba(0, 0, 0, 0.5);
+}
+
+/* Dark theme variables */
+[data-bs-theme="dark"] {
+    /* Primary colors */
+    --primary-color: #0d6efd;
+    --primary-color-hover: #3d8bfd;
+    --primary-color-light: #0a58ca;
+    
+    /* Backgrounds */
+    --bg-body: #121212;
+    --bg-card: #1e1e1e;
+    --bg-dark: #000000;
+    --bg-darker: #000000;
+    --bg-light: #2c2c2c;
+    --bg-hover: #333333;
+    
+    /* Text colors */
+    --text-primary: #e9ecef;
+    --text-secondary: #adb5bd;
+    --text-light: #f8f9fa;
+    --text-muted: #8f959c;
+    --text-danger: #ff4d5e;
+    
+    /* Border colors */
+    --border-color: rgba(255, 255, 255, 0.1);
+    --border-color-light: #2c2c2c;
+    
+    /* Shadow */
+    --shadow-color: rgba(0, 0, 0, 0.5);
+    --shadow: 0 0.5rem 1rem var(--shadow-color);
+    
+    /* Video elements */
+    --video-border: #333333;
+    --video-label-bg: rgba(0, 0, 0, 0.7);
+}
+
+/* Base styles */
 body {
-    background-color: skyblue;
+    background-color: var(--bg-body);
+    color: var(--text-primary);
+}
+
+/* Room options dropdown styles */
+#roomOptionsTrigger .dropdown-menu {
+    display: none;
+    position: absolute;
+    min-width: 200px;
+    background-color: var(--bg-card);
+    border: 1px solid var(--border-color);
+    border-radius: 0.25rem;
+    box-shadow: var(--shadow);
+    z-index: 1000;
+}
+
+#roomOptionsTrigger .dropdown-menu.show {
+    display: block;
+}
+
+#roomOptionsTrigger .dropdown-item {
+    padding: 0.5rem 1rem;
+    clear: both;
+    font-weight: 400;
+    color: var(--text-primary);
+    text-align: inherit;
+    white-space: nowrap;
+    background-color: transparent;
+    border: 0;
+}
+
+#roomOptionsTrigger .dropdown-item:hover,
+#roomOptionsTrigger .dropdown-item:focus {
+    color: var(--text-primary);
+    text-decoration: none;
+    background-color: var(--bg-hover);
+}
+
+#roomOptionsTrigger .dropdown-divider {
+    height: 0;
+    margin: 0.5rem 0;
+    overflow: hidden;
+    border-top: 1px solid var(--border-color-light);
+}
+
+/* Video container styles */
+#video-container {
+    min-height: 400px;
+    background-color: var(--bg-dark);
+}
+
+#local-video-container {
+    position: absolute;
+    bottom: 0;
+    right: 0;
+    padding: 0.5rem;
+    width: 200px;
+    height: 150px;
+    z-index: 100;
+}
+
+#local-video {
+    width: 100%;
+    height: 100%;
+    border-radius: 0.25rem;
+    background-color: var(--bg-darker);
+    border: 2px solid var(--video-border);
+}
+
+.remote-video-wrapper {
+    width: 50%;
+    height: 300px;
+    position: relative;
+}
+
+/* Participant label */
+.remote-video-wrapper .position-absolute,
+#local-video-container .position-absolute {
+    background-color: var(--video-label-bg);
+    color: var(--text-light);
+}
+
+/* Control buttons */
+.btn-outline-light {
+    border-color: var(--text-light);
+    color: var(--text-light);
+}
+
+.btn-outline-light:hover {
+    background-color: var(--text-light);
+    color: var(--bg-dark);
+}
+
+/* Bootstrap overrides for dark mode */
+[data-bs-theme="dark"] .card {
+    background-color: var(--bg-card);
+    border-color: var(--border-color);
+}
+
+[data-bs-theme="dark"] .card-header {
+    background-color: var(--bg-light);
+    border-bottom-color: var(--border-color);
+}
+
+[data-bs-theme="dark"] .list-group-item {
+    background-color: var(--bg-card);
+    border-color: var(--border-color);
+    color: var(--text-primary);
+}
+
+[data-bs-theme="dark"] .badge.bg-primary {
+    background-color: var(--primary-color) !important;
+}
+
+[data-bs-theme="dark"] .badge.bg-warning {
+    color: var(--text-primary) !important;
+}
+
+[data-bs-theme="dark"] .navbar-dark {
+    background-color: var(--primary-color) !important;
+}
+
+[data-bs-theme="dark"] .alert-danger {
+    background-color: rgba(220, 53, 69, 0.2);
+    color: var(--text-danger);
+    border-color: rgba(220, 53, 69, 0.3);
+}
+
+[data-bs-theme="dark"] .btn-primary {
+    background-color: var(--primary-color);
+    border-color: var(--primary-color);
+}
+
+[data-bs-theme="dark"] .btn-primary:hover {
+    background-color: var(--primary-color-hover);
+    border-color: var(--primary-color-hover);
+}
+
+[data-bs-theme="dark"] .btn-outline-primary {
+    border-color: var(--primary-color);
+    color: var(--primary-color);
+}
+
+[data-bs-theme="dark"] .btn-outline-primary:hover {
+    background-color: var(--primary-color);
+    color: var(--text-light);
+}
+
+[data-bs-theme="dark"] .btn-danger {
+    color: var(--text-light) !important;
+}
+
+/* Theme toggler button styles */
+#theme-toggle-btn {
+    color: var(--text-light);
+    padding: 0.5rem;
+    cursor: pointer;
+    background: transparent;
+    border: none;
+}
+
+#theme-toggle-btn:hover {
+    color: var(--text-light);
+    opacity: 0.8;
+}
+
+#theme-toggle-btn i {
+    font-size: 1.1rem;
 }

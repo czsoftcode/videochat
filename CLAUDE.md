@@ -2,31 +2,27 @@
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
-## Commands
+## Build, Lint & Test Commands
+- Run server: `symfony server:start` or `docker-compose up`
+- Run test suite: `php bin/phpunit`
+- Run single test: `php bin/phpunit tests/ClassName/MethodNameTest.php`
+- Run tests with filter: `php bin/phpunit --filter=testMethodName`
+- Lint Twig templates: `php bin/console lint:twig templates/`
+- Lint YAML: `php bin/console lint:yaml config/`
+- Clear cache: `php bin/console cache:clear`
 
-### Build and Run
-- `php bin/console cache:clear` - Clear Symfony cache
-- `php bin/console asset-map:compile` - Compile frontend assets
-- `php bin/console server:run` - Run development server
-
-### Lint
-- `php bin/console lint:container` - Validate service container
-- `php bin/console lint:twig` - Validate Twig templates
-- `php bin/console lint:yaml` - Validate YAML files
-
-### Tests
-- `php bin/phpunit` - Run all tests
-- `php bin/phpunit tests/Path/To/TestFile.php` - Run specific test file
-- `php bin/phpunit --filter testMethodName` - Run specific test method
-
-## Code Style
-
-- PHP Version: >=8.2
-- Symfony Version: 7.2.*
-- Namespace: App\\ (PSR-4)
-- Use type declarations for properties and function parameters
-- Use fluent setters when appropriate for entities
-- Follow Symfony naming conventions (e.g., EntityRepository, EntityController)
-- Use dependency injection via constructor
-- Use services.yaml for service configuration
-- All API responses should use proper HTTP status codes
+## Code Style Guidelines
+- **PHP**: Follow PSR-12 coding standards, PHP 8.2+ features allowed
+- **Indentation**: 4 spaces (no tabs)
+- **Naming**: camelCase for methods/variables, PascalCase for classes, SCREAMING_SNAKE for constants
+- **Imports**: Group Symfony components first, then App namespaces, and other dependencies
+- **Controller**: Use attribute routing, typehint parameters, return Response objects
+- **Error Handling**: Use exceptions with meaningful messages, validate inputs in controllers
+- **Repository Pattern**: Keep DB queries in repository classes, not in controllers
+- **API Responses**: Use JsonResponse with explicit HTTP status codes
+- **Security**: Use Symfony security annotations/attributes, validate CSRF tokens
+- **JavaScript/CSS**: Never use inline styles or scripts - always place in separate files
+- **Asset Organization**: 
+  - JavaScript files go in `assets/js/` directory
+  - CSS files go in `assets/styles/` directory
+  - Import them in app.js/app.css or the importmap

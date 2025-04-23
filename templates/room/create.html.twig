@@ -19,15 +19,21 @@
                         </ul>
                     </div>
                 {% endif %}
+                
+                {% if error is defined and error %}
+                    <div class="alert alert-danger">
+                        {{ error }}
+                    </div>
+                {% endif %}
 
                 <form method="post">
                     <div class="mb-3">
                         <label for="name" class="form-label">Room Name</label>
-                        <input type="text" id="name" name="name" class="form-control" required>
+                        <input type="text" id="name" name="name" class="form-control" value="{{ form_data.name|default('') }}" required>
                     </div>
 
                     <div class="mb-3 form-check">
-                        <input type="checkbox" class="form-check-input" id="is_private" name="is_private" value="1">
+                        <input type="checkbox" class="form-check-input" id="is_private" name="is_private" value="1" {% if form_data.is_private|default(false) %}checked{% endif %}>
                         <label class="form-check-label" for="is_private">Private Room</label>
                         <div class="form-text">Private rooms require a password to join</div>
                     </div>
@@ -35,7 +41,14 @@
                     <div class="mb-3" id="password-group" style="display: none;">
                         <label for="password" class="form-label">Room Password</label>
                         <input type="password" id="password" name="password" class="form-control">
-                        <div class="form-text">This password will be shared with people you want to invite</div>
+                        <div class="form-text">Create a unique password for this room. This password will be required for others to join.</div>
+                    </div>
+                    
+                    <div class="mb-3" id="password-generator" style="display: none;">
+                        <button type="button" id="generate-password" class="btn btn-sm btn-outline-secondary">Generate Secure Password</button>
+                        <button type="button" id="show-password" class="btn btn-sm btn-outline-secondary ms-2">
+                            <i class="fa fa-eye"></i>
+                        </button>
                     </div>
 
                     <button type="submit" class="btn btn-primary">Create Room</button>
@@ -45,18 +58,4 @@
     </div>
 </div>
 
-<script>
-document.addEventListener('DOMContentLoaded', function() {
-    const isPrivateCheckbox = document.getElementById('is_private');
-    const passwordGroup = document.getElementById('password-group');
-    
-    isPrivateCheckbox.addEventListener('change', function() {
-        if (this.checked) {
-            passwordGroup.style.display = 'block';
-        } else {
-            passwordGroup.style.display = 'none';
-        }
-    });
-});
-</script>
 {% endblock %}

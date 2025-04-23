@@ -25,4 +25,30 @@ return [
     '@hotwired/turbo' => [
         'version' => '7.3.0',
     ],
+    'videochat' => [
+        'path' => './assets/js/videochat.js',
+    ],
+    'room-ui' => [
+        'path' => './assets/js/room-ui.js',
+    ],
+    'room-controller' => [
+        'path' => './assets/js/room-controller.js',
+    ],
+    'room-init' => [
+        'path' => './assets/js/room-init.js',
+        'entrypoint' => true,
+    ],
+    'theme-switcher' => [
+        'path' => './assets/js/theme-switcher.js',
+    ],
+    'password-manager' => [
+        'path' => './assets/js/password-manager.js',
+    ],
+    'anti-cache' => [
+        'path' => './assets/js/anti-cache.js',
+        'entrypoint' => true,
+    ],
+    'page-lifecycle' => [
+        'path' => './assets/js/page-lifecycle.js',
+    ],
 ];

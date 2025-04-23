@@ -1,8 +1,11 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en" data-bs-theme="light">
     <head>
         <meta charset="UTF-8">
         <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+        <meta http-equiv="Pragma" content="no-cache">
+        <meta http-equiv="Expires" content="0">
         <title>{% block title %}VideoChat{% endblock %}</title>
         <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 128 128%22><text y=%221.2em%22 font-size=%2296%22>👋</text></svg>">
         {% block stylesheets %}
@@ -23,6 +26,7 @@
                 <meta name="in-video-room" content="true">
             {% endif %}
         {% endblock %}
+        {{ importmap('anti-cache') }}
     </head>
     <body>
         <nav class="navbar navbar-expand-lg navbar-dark bg-primary mb-4">
@@ -50,6 +54,9 @@
                             <a class="nav-link" href="{{ path('app_login') }}">Login</a>
                             <a class="nav-link" href="{{ path('app_register') }}">Register</a>
                         {% endif %}
+                        <button id="theme-toggle-btn" class="btn btn-link nav-link" aria-label="Toggle dark mode" title="Toggle dark mode">
+                            <i class="fa fa-moon"></i>
+                        </button>
                     </div>
                 </div>
             </div>

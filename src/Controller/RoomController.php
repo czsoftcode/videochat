@@ -78,8 +78,20 @@ class RoomController extends AbstractController
             $room->setOwner($this->getUser());
             $room->setIsPrivate($isPrivate);
             
-            if ($isPrivate && $password) {
-                $room->setPassword($password);
+            if ($isPrivate) {
+                // If a private room is created, password is required
+                if ($password) {
+                    $room->setPassword($password);
+                } else {
+                    // Return with error if no password provided for private room
+                    return $this->render('room/create.html.twig', [
+                        'error' => 'Password is required for private rooms',
+                        'form_data' => [
+                            'name' => $name,
+                            'is_private' => $isPrivate
+                        ]
+                    ]);
+                }
             }
             
             $room->addParticipant($this->getUser());
@@ -99,6 +111,52 @@ class RoomController extends AbstractController
         }
         
         return $this->render('room/create.html.twig');
+    }
+
+    #[Route('/room/{slug}/edit-password', name: 'app_room_edit_password', methods: ['GET', 'POST'])]
+    #[IsGranted('ROLE_USER')]
+    public function editRoomPassword(Request $request, string $slug): Response
+    {
+        $room = $this->roomRepository->findOneBy(['slug' => $slug]);
+        
+        if (!$room) {
+            throw $this->createNotFoundException('Room not found');
+        }
+        
+        // Only the room owner can change the password
+        if ($room->getOwner() !== $this->getUser()) {
+            $this->addFlash('error', 'You must be the room owner to change the password');
+            return $this->redirectToRoute('app_room_show', ['slug' => $slug]);
+        }
+        
+        $success = null;
+        $error = null;
+        
+        if ($request->isMethod('POST') && !$request->headers->has('Turbo-Frame')) {
+            $newPassword = $request->request->get('new_password');
+            
+            if (!$newPassword) {
+                $error = 'New password cannot be empty';
+            } else {
+                $room->setPassword($newPassword);
+                $this->entityManager->flush();
+                
+                // Redirect after POST to prevent form resubmission issues with Turbo
+                $this->addFlash('success', 'Room password has been updated successfully');
+                return $this->redirectToRoute('app_room_edit_password', ['slug' => $slug]);
+            }
+        }
+        
+        // Show success flash messages
+        if ($request->getSession()->getFlashBag()->has('success')) {
+            $success = $request->getSession()->getFlashBag()->get('success')[0];
+        }
+        
+        return $this->render('room/edit-password.html.twig', [
+            'room' => $room,
+            'success' => $success,
+            'error' => $error
+        ]);
     }
 
     #[Route('/room/{slug}/permission-check', name: 'app_room_permission_check', methods: ['GET'])]
