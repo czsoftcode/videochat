@@ -2,6 +2,10 @@
  * Room initialization script
  * This is the main entry point for room functionality
  */
+// Import potřebných modulů
+import './videochat.js';
+import './room-ui.js';
+import './room-controller.js';
 
 // Wait for DOM content to be loaded
 document.addEventListener('DOMContentLoaded', () => {
