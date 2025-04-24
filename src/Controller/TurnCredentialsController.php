@@ -35,15 +35,7 @@ class TurnCredentialsController extends AbstractController
     {
         try {
             // Jednoduchá implementace bez přidání timestamp jako v předchozím příkladu
-            $iceServers = [
-                // Vždy přidáme aspoň STUN servery
-                [
-                    'urls' => 'stun:stun.l.google.com:19302'
-                ],
-                [
-                    'urls' => 'stun:stun1.l.google.com:19302'
-                ]
-            ];
+
 
             // Pouze když máme platné TURN údaje, přidáme i TURN server
             if ($this->turnServer && $this->turnUsername && $this->turnPassword) {
