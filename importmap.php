@@ -51,4 +51,12 @@ return [
     'page-lifecycle' => [
         'path' => './assets/js/page-lifecycle.js',
     ],
+    'debug' => [
+        'path' => './assets/js/debug.js',
+        'entrypoint' => true,
+    ],
+    'videochat-init' => [
+        'path' => './assets/js/videochat-init.js',
+        'entrypoint' => true,
+    ],
 ];

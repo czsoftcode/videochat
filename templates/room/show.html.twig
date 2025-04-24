@@ -7,831 +7,216 @@
 {% endblock %}
 
 {% block body %}
-{# Add meta tag for signaling server URL and Turbo cache control #}
-<meta name="signaling-server-url" content="wss://videochat.softcode.cz/ws">
-<meta name="in-video-room" content="true">
-<div data-turbo-permanent id="video-chat-room" data-turbo-cache="false">
+    {# Add meta tag for signaling server URL and Turbo cache control #}
+    <meta name="signaling-server-url" content="wss://videochat.softcode.cz/ws">
+    <meta name="in-video-room" content="true">
+    <meta name="csrf-token" content="{{ csrf_token('turn_credentials') }}">
+    <div data-turbo-permanent id="video-chat-room" data-turbo-cache="false" data-room-slug="{{ room.slug }}">
 
-<div id="roomOptionsTrigger" class="position-fixed top-0 end-0 mt-5 me-3">
-    <button class="btn btn-primary rounded-circle" onclick="showRoomOptions(event)">
-        <i class="fa fa-cog"></i>
-    </button>
-    
-    <div id="roomOptionsMenu" class="dropdown-menu">
-        <a class="dropdown-item" href="{{ path('app_room_invite', {slug: room.slug}) }}">Invite Users</a>
-        <a class="dropdown-item" href="{{ path('app_room_participants', {slug: room.slug}) }}">Manage Participants</a>
-        <a class="dropdown-item" href="#" onclick="copyRoomLink(event)">Copy Room Link</a>
-        <a class="dropdown-item" href="#" onclick="toggleCamera(event)">Disable Video</a>
-        <a class="dropdown-item" href="#" onclick="toggleMicrophone(event)">Mute Audio</a>
-        <a class="dropdown-item" href="#" onclick="shareScreen(event)">Share Screen</a>
-        <div class="dropdown-divider"></div>
-        <a class="dropdown-item text-danger" href="#" onclick="leaveRoom(event)">Leave Room</a>
-    </div>
-</div>
-<div class="row mb-3">
-    <div class="col-md-8">
-        <h1>{{ room.name }}</h1>
-        <p>
-            {% if room.isPrivate %}
-                <span class="badge bg-warning text-dark">Private Room</span>
-            {% else %}
-                <span class="badge bg-success">Public Room</span>
-            {% endif %}
-            <span class="badge bg-info text-dark">
-                <span id="participant-count">{{ room.participants|length }}</span> participants
-            </span>
-        </p>
-    </div>
-    <div class="col-md-4 text-end">
-        <div class="dropdown">
-            <button class="btn btn-outline-primary dropdown-toggle" type="button" id="dropdownMenuButton" data-bs-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
-                Room Options
+        <div id="roomOptionsTrigger" class="position-fixed top-0 end-0 mt-5 me-3">
+            <button class="btn btn-primary rounded-circle" onclick="window.videoRoomUI.showRoomOptions(event)">
+                <i class="fa fa-cog"></i>
             </button>
-            <ul class="dropdown-menu dropdown-menu-end" aria-labelledby="dropdownMenuButton">
-                <li><a class="dropdown-item" href="{{ path('app_room_invite', {slug: room.slug}) }}">Invite Users</a></li>
-                <li><a class="dropdown-item" href="{{ path('app_room_participants', {slug: room.slug}) }}">Manage Participants</a></li>
-                <li><a class="dropdown-item" href="#" id="copy-link">Copy Room Link</a></li>
-                {% if room.isPrivate and app.user and room.owner == app.user %}
-                <li><a class="dropdown-item" href="{{ path('app_room_edit_password', {slug: room.slug}) }}">Manage Room Password</a></li>
-                {% endif %}
-                <li><hr class="dropdown-divider"></li>
-                <li><a class="dropdown-item" href="#" id="toggle-video-menu">Disable Video</a></li>
-                <li><a class="dropdown-item" href="#" id="toggle-audio-menu">Mute Audio</a></li>
-                <li><a class="dropdown-item" href="#" id="share-screen-menu">Share Screen</a></li>
-                <li><hr class="dropdown-divider"></li>
-                <li><a class="dropdown-item text-danger" href="#" id="leave-room">Leave Room</a></li>
-            </ul>
-        </div>
-    </div>
-</div>
 
-<div class="row">
-    <div class="col-md-9">
-        <div class="card mb-4">
-            <div class="card-body p-0">
-                <div id="video-container" class="position-relative">
-                    <div id="local-video-container" class="position-absolute bottom-0 end-0 p-2 z-index-1">
-                        <video id="local-video" autoplay muted playsinline class="w-100 h-100 rounded bg-dark"></video>
-                        <div class="position-absolute bottom-0 start-0 bg-dark bg-opacity-50 text-white px-2 py-1 rounded" style="font-size: 0.8rem;">
-                            You ({{ app.user ? app.user.username : 'Guest' }})
-                        </div>
-                        <button id="camera-retry" onclick="initializeCamera()" class="btn btn-sm btn-danger position-absolute top-0 end-0 m-1" title="Camera did not initialize. Click to retry." style="display: none;">
-                            <i class="fa fa-video-slash"></i> Enable Camera
-                        </button>
-                    </div>
-                    <div id="remote-videos" class="d-flex flex-wrap justify-content-center align-items-center" style="min-height: 400px;">
-                        <div class="text-center text-light py-5">
-                            <div class="spinner-border" role="status">
-                                <span class="visually-hidden">Loading...</span>
-                            </div>
-                            <p class="mt-2">Connecting to room...</p>
-                        </div>
-                    </div>
-                </div>
+            <div id="roomOptionsMenu" class="dropdown-menu">
+                <a class="dropdown-item" href="{{ path('app_room_invite', {slug: room.slug}) }}">Pozvat uživatele</a>
+                <a class="dropdown-item" href="{{ path('app_room_participants', {slug: room.slug}) }}">Správa účastníků</a>
+                <a class="dropdown-item" href="#" onclick="window.videoRoomUI.copyRoomLink(event)">Kopírovat odkaz</a>
+                <a class="dropdown-item" id="menu-toggle-video" href="#" onclick="window.toggleCamera(event)">Vypnout kameru</a>
+                <a class="dropdown-item" id="menu-toggle-mic" href="#" onclick="window.toggleMicrophone(event)">Ztlumit mikrofon</a>
+                <a class="dropdown-item" id="menu-share-screen" href="#" onclick="window.shareScreen(event)">Sdílet obrazovku</a>
+                <div class="dropdown-divider"></div>
+                <a class="dropdown-item text-danger" href="#" onclick="window.leaveRoom(event)">Opustit místnost</a>
             </div>
-            <div class="card-footer bg-dark text-center">
-                <div class="btn-group">
-                    <button id="mic-toggle" class="btn btn-outline-light">
-                        <i class="fa fa-microphone"></i>
+        </div>
+        <div class="row mb-3">
+            <div class="col-md-8">
+                <h1>{{ room.name }}</h1>
+                <p>
+                    {% if room.isPrivate %}
+                        <span class="badge bg-warning text-dark">Soukromá místnost</span>
+                    {% else %}
+                        <span class="badge bg-success">Veřejná místnost</span>
+                    {% endif %}
+                    <span class="badge bg-info text-dark">
+                <span id="participant-count">{{ room.participants|length }}</span> účastníků
+            </span>
+                </p>
+            </div>
+            <div class="col-md-4 text-end">
+                <div class="dropdown">
+                    <button class="btn btn-outline-primary dropdown-toggle" type="button" id="dropdownMenuButton" data-bs-toggle="dropdown" aria-expanded="false">
+                        Možnosti místnosti
                     </button>
-                    <button id="camera-toggle" class="btn btn-outline-light">
-                        <i class="fa fa-video"></i>
-                    </button>
-                    <button id="screen-share" class="btn btn-outline-light">
-                        <i class="fa fa-desktop"></i>
-                    </button>
+                    <ul class="dropdown-menu dropdown-menu-end" aria-labelledby="dropdownMenuButton">
+                        <li><a class="dropdown-item" href="{{ path('app_room_invite', {slug: room.slug}) }}">Pozvat uživatele</a></li>
+                        <li><a class="dropdown-item" href="{{ path('app_room_participants', {slug: room.slug}) }}">Správa účastníků</a></li>
+                        <li><a class="dropdown-item" href="#" id="copy-link">Kopírovat odkaz</a></li>
+                        {% if room.isPrivate and app.user and room.owner == app.user %}
+                            <li><a class="dropdown-item" href="{{ path('app_room_edit_password', {slug: room.slug}) }}">Správa hesla místnosti</a></li>
+                        {% endif %}
+                        <li><hr class="dropdown-divider"></li>
+                        <li><a class="dropdown-item" href="#" id="toggle-video-menu">Vypnout kameru</a></li>
+                        <li><a class="dropdown-item" href="#" id="toggle-audio-menu">Ztlumit mikrofon</a></li>
+                        <li><a class="dropdown-item" href="#" id="share-screen-menu">Sdílet obrazovku</a></li>
+                        <li><hr class="dropdown-divider"></li>
+                        <li><a class="dropdown-item text-danger" href="#" id="leave-room">Opustit místnost</a></li>
+                    </ul>
                 </div>
             </div>
         </div>
-    </div>
-    
-    <div class="col-md-3">
-        <div class="card mb-4">
-            <div class="card-header">
-                <h5 class="mb-0">Participants</h5>
+
+        <div class="row">
+            <div class="col-md-9">
+                <div class="card mb-4">
+                    <div class="card-body p-0">
+                        <div id="video-container" class="position-relative">
+                            <div id="local-video-container" class="position-absolute bottom-0 end-0 p-2 z-index-1">
+                                <video id="local-video" autoplay muted playsinline class="w-100 h-100 rounded bg-dark"></video>
+                                <div class="position-absolute bottom-0 start-0 bg-dark bg-opacity-50 text-white px-2 py-1 rounded" style="font-size: 0.8rem;">
+                                    Vy ({{ app.user ? app.user.username : 'Host' }})
+                                </div>
+                                <button id="camera-retry" onclick="window.initializeCamera()" class="btn btn-sm btn-danger position-absolute top-0 end-0 m-1" title="Kamera se neinicializovala. Kliknutím zkuste znovu." style="display: none;">
+                                    <i class="fa fa-video-slash"></i> Povolit kameru
+                                </button>
+                            </div>
+                            <div id="remote-videos" class="d-flex flex-wrap justify-content-center align-items-center" style="min-height: 400px;">
+                                <div class="text-center text-light py-5">
+                                    <div class="spinner-border" role="status">
+                                        <span class="visually-hidden">Načítání...</span>
+                                    </div>
+                                    <p class="mt-2">Připojování k místnosti...</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="card-footer bg-dark text-center">
+                        <div class="btn-group">
+                            <button id="mic-toggle" class="btn btn-outline-light" onclick="window.toggleMicrophone()">
+                                <i class="fa fa-microphone"></i>
+                            </button>
+                            <button id="camera-toggle" class="btn btn-outline-light" onclick="window.toggleCamera()">
+                                <i class="fa fa-video"></i>
+                            </button>
+                            <button id="screen-share" class="btn btn-outline-light" onclick="window.shareScreen()">
+                                <i class="fa fa-desktop"></i>
+                            </button>
+                        </div>
+                    </div>
+                </div>
             </div>
-            <div class="card-body p-0">
-                <ul class="list-group list-group-flush" id="participants-list">
-                    <li class="list-group-item d-flex justify-content-between align-items-center" data-user-id="{{ app.user.id }}">
-                        {{ app.user.username }} {% if app.user.id == room.owner.id %}(Vy){% else %}(Vy){% endif %}
-                        {% if app.user.id == room.owner.id %}
-                            <span class="badge bg-primary rounded-pill">Host</span>
-                        {% endif %}
-                    </li>
-                    {% for participant in room.participants %}
-                        {% if participant.id != app.user.id %}
-                            <li class="list-group-item" data-user-id="{{ participant.id }}">
-                                {{ participant.username }}
-                                {% if participant.id == room.owner.id %}
-                                    <span class="badge bg-primary rounded-pill">Host</span>
+
+            <div class="col-md-3">
+                <div class="card mb-4">
+                    <div class="card-header">
+                        <h5 class="mb-0">Účastníci</h5>
+                    </div>
+                    <div class="card-body p-0">
+                        <ul class="list-group list-group-flush" id="participants-list">
+                            <li class="list-group-item d-flex justify-content-between align-items-center" data-user-id="{{ app.user.id }}">
+                                {{ app.user.username }} {% if app.user.id == room.owner.id %}(Vy){% else %}(Vy){% endif %}
+                                {% if app.user.id == room.owner.id %}
+                                    <span class="badge bg-primary rounded-pill">Hostitel</span>
                                 {% endif %}
                             </li>
-                        {% endif %}
-                    {% endfor %}
-                </ul>
+                            {% for participant in room.participants %}
+                                {% if participant.id != app.user.id %}
+                                    <li class="list-group-item" data-user-id="{{ participant.id }}">
+                                        {{ participant.username }}
+                                        {% if participant.id == room.owner.id %}
+                                            <span class="badge bg-primary rounded-pill">Hostitel</span>
+                                        {% endif %}
+                                    </li>
+                                {% endif %}
+                            {% endfor %}
+                        </ul>
+                    </div>
+                </div>
             </div>
         </div>
     </div>
-</div>
 
-{% block javascripts %}
-{{ parent() }}
-<script>
-    // Using a unique namespace to avoid conflicts with Turbo
-    window.videoChatApp = window.videoChatApp || {};
-
-    // Store room information in our namespace
-    videoChatApp.roomId = {{ room.id }};
-    videoChatApp.roomSlug = "{{ room.slug }}";
-    videoChatApp.currentUserId = {{ app.user ? app.user.id : 'null' }};
-    videoChatApp.currentUsername = "{{ app.user ? app.user.username : 'Guest' }}";
-    videoChatApp.isOwner = {{ app.user and app.user.id == room.owner.id ? 'true' : 'false' }};
-    videoChatApp.csrfToken = "{{ csrf_token('turn_credentials') }}";
-
-    // Přidat autentikační token, který můžeme poslat v požadavku pro TURN credentials
-    // Toto je důležité pro případy, kdy cookie-based autentizace selže
-    {% if app.user %}
-    videoChatApp.authToken = "{{ app.user.id ~ '_' ~ csrf_token('user_auth_' ~ app.user.id) }}";
-    {% else %}
-    videoChatApp.authToken = "guest_{{ csrf_token('guest_auth') }}";
-    {% endif %}
-</script>
-
-{# Přímé vložení potřebného kódu pro inicializaci VideoChat třídy #}
-<script>
-// Pokud VideoChat třída neexistuje, vytvoříme plnohodnotný fallback
-// který umožní alespoň základní funkcionalitu video chatu
-if (typeof window.VideoChat !== 'function') {
-    console.log('VideoChat třída není k dispozici, vytvářím plnohodnotný fallback');
-    
-    // Definujeme fallback třídu VideoChat
-    window.VideoChat = class VideoChat {
-        constructor(roomId, userId, username) {
-            this.roomId = roomId;
-            this.userId = userId || 'guest';
-            this.username = username || 'Host';
-            this.localStream = null;
-            this.peers = new Map();
-            this.signalingSocket = null;
-            this.micEnabled = true;
-            this.cameraEnabled = true;
-            this.isScreenSharing = false;
-            
-            // Reference na UI elementy
-            this.localVideo = document.getElementById('local-video');
-            this.remoteVideosContainer = document.getElementById('remote-videos');
-            this.micToggleBtn = document.getElementById('mic-toggle');
-            this.cameraToggleBtn = document.getElementById('camera-toggle');
-            this.screenShareBtn = document.getElementById('screen-share');
-            
-            console.log('VideoChat fallback instance vytvořena');
-        }
-        
-        // Inicializace kamery, mikrofonu a signalizačního spojení
-        async init() {
-            console.log('VideoChat.init() volána');
-            try {
-                // Připojení na signalizační server
-                await this.connectToSignalingServer();
-                
-                // Inicializace lokálního streamu
-                await this.initLocalStream();
-                
-                // Získání TURN credentials
-                const turnServers = await this.getTurnServers();
-                console.log('TURN servery získány:', turnServers);
-                
-                // Aktualizace UI
-                this.updateUI();
-                
-                return true;
-            } catch (e) {
-                console.error('Chyba při inicializaci VideoChat:', e);
-                this.showError('Nepodařilo se inicializovat video chat: ' + e.message);
-                return false;
-            }
-        }
-        
-        // Připojení na signalizační server
-        async connectToSignalingServer() {
-            try {
-                // Získání URL z meta tagu
-                const signalServerUrl = document.querySelector('meta[name="signaling-server-url"]')?.content || 'wss://videochat.softcode.cz/ws';
-                console.log('Připojuji se k signalizačnímu serveru:', signalServerUrl);
-                
-                // Vytvoření WebSocket spojení se signalizačním serverem
-                return new Promise((resolve, reject) => {
-                    try {
-                        // Zkusíme vytvořit WebSocket s 5 vteřinami na timeout
-                        const connectTimeout = setTimeout(() => {
-                            reject(new Error('Timeout při připojování k signalizačnímu serveru'));
-                        }, 5000);
-                        
-                        this.signalingSocket = new WebSocket(signalServerUrl);
-                        
-                        this.signalingSocket.onopen = () => {
-                            clearTimeout(connectTimeout);
-                            console.log('Připojeno k signalizačnímu serveru');
-                            
-                            // Registrace na server
-                            this.sendToSignalingServer({
-                                type: 'register',
-                                roomId: this.roomId,
-                                userId: this.userId,
-                                username: this.username
-                            });
-                            
-                            resolve();
-                        };
-                        
-                        this.signalingSocket.onmessage = (event) => {
-                            this.handleSignalingMessage(event);
-                        };
-                        
-                        this.signalingSocket.onerror = (error) => {
-                            clearTimeout(connectTimeout);
-                            console.error('Chyba WebSocket:', error);
-                            reject(new Error('Nepodařilo se připojit k signalizačnímu serveru'));
-                        };
-                        
-                        this.signalingSocket.onclose = () => {
-                            console.log('WebSocket spojení uzavřeno');
-                        };
-                    } catch (e) {
-                        clearTimeout(connectTimeout);
-                        reject(e);
-                    }
-                });
-            } catch (e) {
-                console.error('Chyba při připojování k signalizačnímu serveru:', e);
-                throw new Error('Nepodařilo se připojit k signalizačnímu serveru: ' + e.message);
-            }
-        }
-        
-        // Inicializace lokálního video a audio streamu
-        async initLocalStream() {
-            try {
-                // Nastavení výchozího informačního textu
-                if (this.remoteVideosContainer) {
-                    this.remoteVideosContainer.innerHTML = `
-                        <div class="text-center text-light py-5">
-                            <p class="mt-2">Připojování k místnosti...</p>
-                        </div>
-                    `;
-                }
-                
-                // Získání přístupu ke kameře a mikrofonu
-                this.localStream = await navigator.mediaDevices.getUserMedia({
-                    video: true,
-                    audio: true
-                });
-                
-                // Přiřazení lokálního streamu k video elementu
-                if (this.localVideo) {
-                    this.localVideo.srcObject = this.localStream;
-                }
-                
-                return true;
-            } catch (e) {
-                console.error('Chyba při inicializaci lokálního streamu:', e);
-                this.showError('Nepodařilo se získat přístup ke kameře nebo mikrofonu. ' + 
-                               'Ujistěte se, že máte povolen přístup k médiím v nastavení prohlížeče.');
-                
-                // Vytvoření prázdného streamu pro kompatibilitu
-                this.localStream = new MediaStream();
-                
-                return false;
-            }
-        }
-        
-        // Získání TURN serverů pro ICE konfiguraci
-        async getTurnServers() {
-            try {
-                // Použijeme tokeny z videoChatApp namespace pro autentizaci
-                const csrfToken = videoChatApp.csrfToken || '';
-                const authToken = videoChatApp.authToken || '';
-                
-                // Sestavíme URL s parametry
-                const url = new URL('/api/turn-credentials', window.location.origin);
-                
-                // Přidáme timestamp pro vyhnutí se cache
-                url.searchParams.append('t', Date.now());
-                
-                if (csrfToken) {
-                    url.searchParams.append('csrf_token', csrfToken);
-                }
-                if (authToken) {
-                    url.searchParams.append('auth_token', authToken);
-                }
-                
-                console.log(`Získávám TURN credentials z: ${url.toString()}`);
-                
-                // Přidáváme nezbytné parametry pro autentizaci
-                const response = await fetch(url.toString(), {
-                    method: 'GET',
-                    headers: {
-                        'Accept': 'application/json',
-                        'X-Requested-With': 'XMLHttpRequest',
-                        'Referer': window.location.href,
-                        'Cache-Control': 'no-cache, no-store, must-revalidate'
-                    },
-                    // Důležité - zajistí odeslání cookies pro autentizaci
-                    credentials: 'same-origin'
-                });
-                
-                if (!response.ok) {
-                    const errorText = await response.text();
-                    console.error('Chyba při získávání TURN serverů:', errorText);
-                    
-                    // Pokud se první pokus nezdařil, zkusíme znovu s jinými parametry
-                    if (response.status === 401) {
-                        console.log('Zkouším alternativní způsob autentizace pro TURN servery');
-                        
-                        // Přidáme timestamp pro vyhnutí se cache při druhém pokusu
-                        const retryUrl = new URL('/api/turn-credentials', window.location.origin);
-                        retryUrl.searchParams.append('t', Date.now() + 1);
-                        retryUrl.searchParams.append('retry', 'true');
-                        
-                        // Použijeme jednodušší URL bez parametrů - spoléháme jen na referrer
-                        const retryResponse = await fetch(retryUrl.toString(), {
-                            method: 'GET',
-                            headers: {
-                                'Accept': 'application/json',
-                                'Referer': window.location.href,
-                                'Cache-Control': 'no-cache'
-                            },
-                            credentials: 'same-origin'
-                        });
-                        
-                        if (retryResponse.ok) {
-                            const retryData = await retryResponse.json();
-                            console.log('Druhý pokus úspěšný!');
-                            return retryData;
-                        } else {
-                            console.error('I druhý pokus selhal:', await retryResponse.text());
-                            
-                            // Poslední možnost - pokus s POST místo GET (obchází cache)
-                            console.log('Zkouším poslední možnost - POST request');
-                            const lastResponse = await fetch('/api/turn-credentials', {
-                                method: 'POST',  // POST místo GET
-                                headers: {
-                                    'Accept': 'application/json', 
-                                    'Content-Type': 'application/json',
-                                    'X-Requested-With': 'XMLHttpRequest'
-                                },
-                                credentials: 'same-origin',
-                                body: JSON.stringify({
-                                    timestamp: Date.now(),
-                                    roomId: videoChatApp.roomId
-                                })
-                            });
-                            
-                            if (lastResponse.ok) {
-                                const lastData = await lastResponse.json();
-                                console.log('POST pokus úspěšný!');
-                                return lastData;
-                            }
-                        }
-                    }
-                    
-                    throw new Error(`Chyba HTTP: ${response.status}, zpráva: ${errorText}`);
-                }
-                
-                const data = await response.json();
-                
-                // Ověřit, že máme správné TURN servery
-                if (data.length <= 1) {
-                    console.warn('Obdrželi jsme pouze STUN servery, TURN servery chybí. Videohovor může mít problémy s připojením za NATem.');
-                } else {
-                    console.log('Úspěšně získány TURN servery:', data.length);
-                }
-                
-                return data;
-            } catch (error) {
-                console.error('Chyba při získávání TURN serverů:', error);
-                
-                // Vrátíme alespoň STUN server jako fallback
-                console.warn('Používám záložní STUN servery');
-                return [{ urls: 'stun:stun.l.google.com:19302' }];
-            }
-        }
-        
-        // Zpracování zpráv ze signalizačního serveru
-        handleSignalingMessage(event) {
-            try {
-                const message = JSON.parse(event.data);
-                console.log('Přijata zpráva ze signalizačního serveru:', message);
-                
-                // Simulace připojení po 2 sekundách
-                if (message.type === 'user-joined') {
-                    setTimeout(() => {
-                        this.updateParticipantsList();
-                        this.displaySuccessMessage();
-                    }, 2000);
-                }
-            } catch (e) {
-                console.error('Chyba při zpracování zprávy ze signalizačního serveru:', e);
-            }
-        }
-        
-        // Odeslání zprávy na signalizační server
-        sendToSignalingServer(data) {
-            if (this.signalingSocket && this.signalingSocket.readyState === WebSocket.OPEN) {
-                this.signalingSocket.send(JSON.stringify(data));
-            } else {
-                console.warn('Signalizační server není připojen, zpráva nebyla odeslána');
-            }
-        }
-        
-        // Přepnutí stavu mikrofonu
-        toggleMicrophone() {
-            if (!this.localStream) return;
-            
-            const audioTracks = this.localStream.getAudioTracks();
-            if (audioTracks.length === 0) return;
-            
-            this.micEnabled = !this.micEnabled;
-            audioTracks[0].enabled = this.micEnabled;
-            
-            // Aktualizace UI
-            if (this.micToggleBtn) {
-                if (this.micEnabled) {
-                    this.micToggleBtn.innerHTML = '<i class="fa fa-microphone"></i>';
-                    this.micToggleBtn.classList.remove('btn-danger');
-                    this.micToggleBtn.classList.add('btn-outline-light');
-                } else {
-                    this.micToggleBtn.innerHTML = '<i class="fa fa-microphone-slash"></i>';
-                    this.micToggleBtn.classList.remove('btn-outline-light');
-                    this.micToggleBtn.classList.add('btn-danger');
-                }
-            }
-            
-            return this.micEnabled;
-        }
-        
-        // Přepnutí stavu kamery
-        toggleCamera() {
-            if (!this.localStream) return;
-            
-            const videoTracks = this.localStream.getVideoTracks();
-            if (videoTracks.length === 0) return;
-            
-            this.cameraEnabled = !this.cameraEnabled;
-            videoTracks[0].enabled = this.cameraEnabled;
-            
-            // Aktualizace UI
-            if (this.cameraToggleBtn) {
-                if (this.cameraEnabled) {
-                    this.cameraToggleBtn.innerHTML = '<i class="fa fa-video"></i>';
-                    this.cameraToggleBtn.classList.remove('btn-danger');
-                    this.cameraToggleBtn.classList.add('btn-outline-light');
-                } else {
-                    this.cameraToggleBtn.innerHTML = '<i class="fa fa-video-slash"></i>';
-                    this.cameraToggleBtn.classList.remove('btn-outline-light');
-                    this.cameraToggleBtn.classList.add('btn-danger');
-                }
-            }
-            
-            return this.cameraEnabled;
-        }
-        
-        // Sdílení obrazovky
-        async shareScreen() {
-            if (this.isScreenSharing) {
-                // Zastavit sdílení obrazovky
-                this.isScreenSharing = false;
-                
-                // Obnovit původní stream z kamery
-                await this.initLocalStream();
-                
-                // Aktualizovat UI
-                if (this.screenShareBtn) {
-                    this.screenShareBtn.innerHTML = '<i class="fa fa-desktop"></i>';
-                    this.screenShareBtn.classList.remove('btn-danger');
-                    this.screenShareBtn.classList.add('btn-outline-light');
-                }
-                
-                return false;
-            }
-            
-            try {
-                // Získat přístup ke sdílení obrazovky
-                const screenStream = await navigator.mediaDevices.getDisplayMedia({
-                    video: {
-                        cursor: 'always'
-                    },
-                    audio: false
-                });
-                
-                // Získat audio z původního streamu
-                const audioTrack = this.localStream?.getAudioTracks()[0];
-                
-                // Vytvořit nový stream s video ze sdílení obrazovky a audio z mikrofonu
-                const newStream = new MediaStream();
-                screenStream.getVideoTracks().forEach(track => {
-                    newStream.addTrack(track);
-                    
-                    // Nastavit listener pro detekci ukončení sdílení obrazovky
-                    track.onended = () => {
-                        this.shareScreen(); // Přepnout zpět na kameru
-                    };
-                });
-                
-                if (audioTrack) {
-                    newStream.addTrack(audioTrack);
-                }
-                
-                // Zastavit původní stream
-                if (this.localStream) {
-                    this.localStream.getTracks().forEach(track => {
-                        if (track.kind === 'video') {
-                            track.stop();
-                        }
-                    });
-                }
-                
-                // Nastavit nový stream
-                this.localStream = newStream;
-                
-                // Aktualizovat video element
-                if (this.localVideo) {
-                    this.localVideo.srcObject = newStream;
-                }
-                
-                // Aktualizovat UI
-                this.isScreenSharing = true;
-                if (this.screenShareBtn) {
-                    this.screenShareBtn.innerHTML = '<i class="fa fa-stop"></i> <i class="fa fa-desktop"></i>';
-                    this.screenShareBtn.classList.remove('btn-outline-light');
-                    this.screenShareBtn.classList.add('btn-danger');
-                }
-                
-                return true;
-            } catch (e) {
-                console.error('Chyba při sdílení obrazovky:', e);
-                alert('Nepodařilo se sdílet obrazovku: ' + e.message);
-                return false;
-            }
-        }
-        
-        // Opustit místnost
-        leaveRoom() {
-            // Ukončit všechny streamy
-            if (this.localStream) {
-                this.localStream.getTracks().forEach(track => track.stop());
-            }
-            
-            // Odpojit od signalizačního serveru
-            if (this.signalingSocket) {
-                this.signalingSocket.close();
-            }
-            
-            // Přesměrovat na homepage
-            window.location.href = '/';
-        }
-        
-        // Aktualizace seznamu účastníků
-        updateParticipantsList() {
-            const participantsList = document.getElementById('participants-list');
-            if (!participantsList) return;
-            
-            // Simulujeme připojení jednoho účastníka (existující jsou již v HTML)
-            const participantId = "guest-" + Math.floor(Math.random() * 10000);
-            const isHost = false;
-            
-            // Vytvoření nového elementu účastníka
-            const li = document.createElement('li');
-            li.className = 'list-group-item d-flex justify-content-between align-items-center';
-            li.dataset.userId = participantId;
-            li.innerHTML = `
-                Host${participantId.substring(5)} 
-                ${isHost ? '<span class="badge bg-primary rounded-pill">Host</span>' : ''}
-            `;
-            
-            // Přidání do seznamu
-            participantsList.appendChild(li);
-            
-            // Aktualizace počítadla účastníků
-            const participantCountEl = document.getElementById('participant-count');
-            if (participantCountEl) {
-                const currentCount = parseInt(participantCountEl.innerText) || 0;
-                participantCountEl.innerText = (currentCount + 1).toString();
-            }
-            
-            // Simulace zobrazení video účastníka
-            this.displayRemoteParticipant(participantId);
-        }
-        
-        // Zobrazení video elementu vzdáleného účastníka
-        displayRemoteParticipant(participantId) {
-            if (!this.remoteVideosContainer) return;
-            
-            // Vyčistit loading zprávu
-            this.remoteVideosContainer.innerHTML = '';
-            
-            // Přidat placeholder pro vzdáleného účastníka
-            const remoteContainer = document.createElement('div');
-            remoteContainer.className = 'remote-video-wrapper position-relative mb-2 me-2';
-            remoteContainer.dataset.peerId = participantId;
-            remoteContainer.style.width = '320px';
-            remoteContainer.style.height = '240px';
-            
-            remoteContainer.innerHTML = `
-                <video class="remote-video w-100 h-100 bg-dark rounded" autoplay playsinline></video>
-                <div class="position-absolute bottom-0 start-0 bg-dark bg-opacity-50 text-white px-2 py-1 rounded" style="font-size: 0.8rem;">
-                    Host${participantId.substring(5)}
-                </div>
-            `;
-            
-            this.remoteVideosContainer.appendChild(remoteContainer);
-            
-            // Simulace video streamu s barevným pozadím (gradient)
-            const videoEl = remoteContainer.querySelector('video');
-            if (videoEl) {
-                // Vytvořit canvas s gradientem jako náhradní video
-                const canvas = document.createElement('canvas');
-                canvas.width = 320;
-                canvas.height = 240;
-                const ctx = canvas.getContext('2d');
-                
-                // Funkce pro vykreslení gradientu
-                const drawGradient = () => {
-                    // Vytvořit gradient
-                    const gradient = ctx.createLinearGradient(0, 0, canvas.width, canvas.height);
-                    gradient.addColorStop(0, 'rgba(63, 94, 251, 0.7)');
-                    gradient.addColorStop(1, 'rgba(252, 70, 107, 0.7)');
-                    
-                    // Vyplnit pozadí
-                    ctx.fillStyle = gradient;
-                    ctx.fillRect(0, 0, canvas.width, canvas.height);
-                    
-                    // Přidat text
-                    ctx.fillStyle = 'white';
-                    ctx.font = '18px Arial';
-                    ctx.textAlign = 'center';
-                    ctx.fillText('Vzdálený účastník', canvas.width / 2, canvas.height / 2);
-                    
-                    // Animace pohybu pro simulaci videa
-                    const time = Date.now() / 1000;
-                    const x = Math.sin(time) * 50 + canvas.width / 2;
-                    const y = Math.cos(time) * 25 + canvas.height / 2;
-                    ctx.beginPath();
-                    ctx.arc(x, y, 20, 0, Math.PI * 2);
-                    ctx.fillStyle = 'rgba(255, 255, 255, 0.7)';
-                    ctx.fill();
-                    
-                    // Dalsi snimek
-                    requestAnimationFrame(drawGradient);
-                };
-                
-                // Spustit animaci
-                drawGradient();
-                
-                // Nastavit canvas jako zdroj videa
-                videoEl.srcObject = canvas.captureStream(30);
-            }
-        }
-        
-        // Zobrazení chybové zprávy
-        showError(message) {
-            if (!this.remoteVideosContainer) return;
-            
-            this.remoteVideosContainer.innerHTML = `
-                <div class="alert alert-danger my-3 p-3 text-center">
-                    <h4 class="alert-heading"><i class="fas fa-exclamation-triangle"></i> Chyba</h4>
-                    <p>${message}</p>
-                    <button class="btn btn-primary mt-3" onclick="window.location.reload()">Obnovit stránku</button>
-                </div>
-            `;
-        }
-        
-        // Zobrazení úspěšného připojení
-        displaySuccessMessage() {
-            // Pokud máme remote video, nebudeme zobrazovat zprávu
-            if (this.remoteVideosContainer && this.remoteVideosContainer.children.length <= 1) {
-                this.remoteVideosContainer.innerHTML = `
-                    <div class="alert alert-success my-3 p-3 text-center">
-                        <h4 class="alert-heading"><i class="fas fa-check-circle"></i> Připojení úspěšné</h4>
-                        <p>Jste připojeni do místnosti. Čekáme na další účastníky...</p>
-                    </div>
-                `;
-            }
-        }
-        
-        // Aktualizace UI podle stavu
-        updateUI() {
-            // Aktualizace tlačítek podle stavu
-            if (this.micToggleBtn) {
-                if (this.micEnabled) {
-                    this.micToggleBtn.innerHTML = '<i class="fa fa-microphone"></i>';
-                    this.micToggleBtn.classList.remove('btn-danger');
-                    this.micToggleBtn.classList.add('btn-outline-light');
-                } else {
-                    this.micToggleBtn.innerHTML = '<i class="fa fa-microphone-slash"></i>';
-                    this.micToggleBtn.classList.remove('btn-outline-light');
-                    this.micToggleBtn.classList.add('btn-danger');
-                }
-            }
-            
-            if (this.cameraToggleBtn) {
-                if (this.cameraEnabled) {
-                    this.cameraToggleBtn.innerHTML = '<i class="fa fa-video"></i>';
-                    this.cameraToggleBtn.classList.remove('btn-danger');
-                    this.cameraToggleBtn.classList.add('btn-outline-light');
-                } else {
-                    this.cameraToggleBtn.innerHTML = '<i class="fa fa-video-slash"></i>';
-                    this.cameraToggleBtn.classList.remove('btn-outline-light');
-                    this.cameraToggleBtn.classList.add('btn-danger');
-                }
-            }
-            
-            if (this.screenShareBtn) {
-                if (this.isScreenSharing) {
-                    this.screenShareBtn.innerHTML = '<i class="fa fa-stop"></i> <i class="fa fa-desktop"></i>';
-                    this.screenShareBtn.classList.remove('btn-outline-light');
-                    this.screenShareBtn.classList.add('btn-danger');
-                } else {
-                    this.screenShareBtn.innerHTML = '<i class="fa fa-desktop"></i>';
-                    this.screenShareBtn.classList.remove('btn-danger');
-                    this.screenShareBtn.classList.add('btn-outline-light');
-                }
-            }
-        }
-    };
-    
-    // Vytvořit singleton pro videoRoomUI, pokud neexistuje
-    window.videoRoomUI = window.videoRoomUI || {
-        initializeDropdowns: function() {
-            var dropdownElementList = [].slice.call(document.querySelectorAll('.dropdown-toggle'));
-            dropdownElementList.map(function (dropdownToggleEl) {
-                return new bootstrap.Dropdown(dropdownToggleEl);
-            });
-        },
-        showRoomOptions: function(event) {
-            if (event) event.preventDefault();
-            const menu = document.getElementById('roomOptionsMenu');
-            if (menu) {
-                menu.classList.toggle('show');
-            }
-        },
-        copyRoomLink: function(event) {
-            if (event) event.preventDefault();
-            const roomSlug = document.getElementById('video-chat-room').dataset.roomSlug;
-            const roomUrl = window.location.origin + '/room/' + roomSlug;
-            navigator.clipboard.writeText(roomUrl).then(function() {
-                alert('Odkaz na místnost byl zkopírován do schránky!');
-            });
-        },
-        setupBeforeUnload: function(videoChatInstance) {
-            window.addEventListener('beforeunload', function(e) {
-                // Ukončit streamy před opuštěním stránky
-                if (videoChatInstance && videoChatInstance.localStream) {
-                    videoChatInstance.localStream.getTracks().forEach(track => track.stop());
-                }
-            });
-        }
-    };
-    
-    console.log('Vytvořen plnohodnotný fallback pro VideoChat');
-}
-</script>
-
-{# Použijeme dynamické načítání skriptů a záložní řešení #}
-<script>
-    // Funkce pro zjištění, zda skript existuje a následné načtení
-    function loadScriptWithFallback(url, fallbackUrl, callback) {
-        const script = document.createElement('script');
-        script.src = url;
-        script.onerror = function() {
-            console.warn(`Skript ${url} nebyl nalezen, zkouším alternativní cestu ${fallbackUrl}`);
-            if (fallbackUrl) {
-                const fallbackScript = document.createElement('script');
-                fallbackScript.src = fallbackUrl;
-                fallbackScript.onerror = function() {
-                    console.error(`Ani alternativní skript ${fallbackUrl} nebyl nalezen`);
-                    if (callback) callback(false);
-                };
-                fallbackScript.onload = function() {
-                    console.log(`Alternativní skript ${fallbackUrl} byl úspěšně načten`);
-                    if (callback) callback(true);
-                };
-                document.head.appendChild(fallbackScript);
-            } else {
-                if (callback) callback(false);
-            }
-        };
-        script.onload = function() {
-            console.log(`Skript ${url} byl úspěšně načten`);
-            if (callback) callback(true);
-        };
-        document.head.appendChild(script);
-    }
-
-</script>
-
-{# Jako záložní řešení přidáme také importmap #}
-{{ importmap('room-init') }}
 {% endblock %}
 
-</div> {# End of data-turbo-permanent div #}
+{% block javascripts %}
+    {{ parent() }}
+
+    {# Definujeme proměnné pro JS #}
+    <script>
+        // Namespace pro data o místnosti
+        window.videoChatApp = {
+            roomId: {{ room.id }},
+            roomSlug: "{{ room.slug }}",
+            currentUserId: {{ app.user ? app.user.id : 'null' }},
+            currentUsername: "{{ app.user ? app.user.username : 'Host' }}",
+            isOwner: {{ app.user and app.user.id == room.owner.id ? 'true' : 'false' }},
+            csrfToken: "{{ csrf_token('turn_credentials') }}"
+        };
+    </script>
+
+    {# Přímé importy JS souborů přes importmap #}
+    {{ importmap('debug') }}
+    {{ importmap('videochat-init') }}
+
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            console.log('DOMContentLoaded v hlavní šabloně, inicializuji pomocníky');
+
+            // Inicializace dropdownů
+            var dropdownElementList = [].slice.call(document.querySelectorAll('.dropdown-toggle'))
+            dropdownElementList.map(function(dropdownToggleEl) {
+                try {
+                    return new bootstrap.Dropdown(dropdownToggleEl)
+                } catch (e) {
+                    console.error('Chyba při inicializaci dropdownu:', e);
+                }
+            });
+
+            // Přidáme event listenery na tlačítka
+            document.getElementById('copy-link')?.addEventListener('click', function(e) {
+                e.preventDefault();
+                if (window.videoRoomUI && window.videoRoomUI.copyRoomLink) {
+                    window.videoRoomUI.copyRoomLink(e);
+                } else {
+                    const roomSlug = document.getElementById('video-chat-room').dataset.roomSlug;
+                    const roomUrl = window.location.origin + '/room/' + roomSlug;
+                    navigator.clipboard.writeText(roomUrl).then(function() {
+                        alert('Odkaz na místnost byl zkopírován do schránky!');
+                    });
+                }
+            });
+
+            document.getElementById('toggle-video-menu')?.addEventListener('click', function(e) {
+                e.preventDefault();
+                if (window.toggleCamera) {
+                    window.toggleCamera(e);
+                }
+            });
+
+            document.getElementById('toggle-audio-menu')?.addEventListener('click', function(e) {
+                e.preventDefault();
+                if (window.toggleMicrophone) {
+                    window.toggleMicrophone(e);
+                }
+            });
+
+            document.getElementById('share-screen-menu')?.addEventListener('click', function(e) {
+                e.preventDefault();
+                if (window.shareScreen) {
+                    window.shareScreen(e);
+                }
+            });
+
+            document.getElementById('leave-room')?.addEventListener('click', function(e) {
+                e.preventDefault();
+                if (window.leaveRoom) {
+                    window.leaveRoom(e);
+                } else {
+                    if (confirm('Opravdu chcete opustit tuto místnost?')) {
+                        window.location.href = '/';
+                    }
+                }
+            });
+        });
+    </script>
 {% endblock %}
