@@ -24,7 +24,11 @@ security:
                 check_path: /api/login_check
                 success_handler: lexik_jwt_authentication.handler.authentication_success
                 failure_handler: lexik_jwt_authentication.handler.authentication_failure
-        
+
+        api_public:
+            pattern: ^/api/(turn-credentials|test)
+            security: false  # Vypne zabezpečení pro tyto endpointy
+
         api:
             pattern: ^/api/login
             stateless: true
@@ -54,6 +58,7 @@ security:
         - { path: ^/login, roles: PUBLIC_ACCESS }
         - { path: ^/register, roles: PUBLIC_ACCESS }
         - { path: ^/api/turn-credentials, roles: PUBLIC_ACCESS }
+        - { path: ^/api/test, roles: PUBLIC_ACCESS }
 
 when@test:
     security:
