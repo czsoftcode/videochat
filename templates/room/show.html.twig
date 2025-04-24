@@ -827,45 +827,6 @@ if (typeof window.VideoChat !== 'function') {
         document.head.appendChild(script);
     }
 
-    // Načtení skriptů ve správném pořadí s podporou fallbacku
-    const scriptsToLoad = [
-        {
-            path: '{{ asset('assets/js/videochat.js') }}',
-            fallback: '{{ asset('build/js/videochat.js') }}'
-        },
-        {
-            path: '{{ asset('assets/js/room-ui.js') }}',
-            fallback: '{{ asset('build/js/room-ui.js') }}'
-        },
-        {
-            path: '{{ asset('assets/js/room-controller.js') }}',
-            fallback: '{{ asset('build/js/room-controller.js') }}'
-        },
-        {
-            path: '{{ asset('assets/js/room-init.js') }}',
-            fallback: '{{ asset('build/js/room-init.js') }}'
-        }
-    ];
-
-    // Postupné načítání skriptů s respektováním pořadí
-    function loadScriptsSequentially(scripts, index) {
-        if (index >= scripts.length) {
-            console.log('Všechny skripty byly načteny');
-            return;
-        }
-
-        loadScriptWithFallback(
-            scripts[index].path, 
-            scripts[index].fallback, 
-            function(success) {
-                // Pokračuj dalším skriptem bez ohledu na výsledek
-                loadScriptsSequentially(scripts, index + 1);
-            }
-        );
-    }
-
-    // Spustit načítání skriptů
-    //loadScriptsSequentially(scriptsToLoad, 0);
 </script>
 
 {# Jako záložní řešení přidáme také importmap #}
