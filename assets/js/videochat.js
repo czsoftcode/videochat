@@ -8,33 +8,32 @@ async function getTurnServers() {
     try {
         console.log('Získávám TURN credentials...');
 
-        // Jednoduché volání bez složitých parametrů
-        const timestamp = Date.now();
-        const response = await fetch(`/api/turn-credentials?t=${timestamp}`, {
+        const localApiUrl = new URL('/api/turn-credentials', window.location.origin);
+        localApiUrl.searchParams.append('t', Date.now()); // Anti-cache parameter
+
+        const response = await fetch(localApiUrl.toString(), {
             method: 'GET',
             headers: {
                 'Accept': 'application/json',
                 'X-Requested-With': 'XMLHttpRequest'
-            }
+            },
+            credentials: 'include' // Důležité pro autentizaci
         });
 
         if (!response.ok) {
-            throw new Error(`HTTP error ${response.status}`);
+            throw new Error('Nepodařilo se získat TURN credentials');
         }
 
-        const iceServers = await response.json();
-        console.log('TURN servery získány:', iceServers);
-        return iceServers;
+        const data = await response.json();
+        console.log('Úspěšně získány ICE servery:', data.length);
+        return data;
     } catch (error) {
         console.error('Chyba při získávání TURN serverů:', error);
 
-        // Vrátíme alespoň STUN servery jako fallback
-        console.warn('Používám záložní STUN servery');
+        // Fallback pouze na STUN servery
         return [
             { urls: 'stun:stun.l.google.com:19302' },
-            { urls: 'stun:stun1.l.google.com:19302' },
-            { urls: 'stun:stun2.l.google.com:19302' },
-            { urls: 'stun:stun.relay.metered.ca:80' }
+            { urls: 'stun:stun1.l.google.com:19302' }
         ];
     }
 }
@@ -43,8 +42,8 @@ async function getTurnServers() {
 const peerConfig = {
     debug: 2,
     config: {
-        iceServers: await getTurnServers(), // Tato funkce nám vrátí potřebné servery
-        iceTransportPolicy: 'all' // Změníme z 'relay' na 'all' pro lepší výkon
+        iceServers: await getTurnServers(),
+        iceTransportPolicy: 'relay' // Můžete nastavit na 'relay' pro vynucení TURN
     }
 };
 

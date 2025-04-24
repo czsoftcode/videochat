@@ -13,6 +13,11 @@ parameters:
     # Defaultní hodnoty pro případ, že proměnné prostředí nejsou nastaveny
     app.metered_api_key: '%env(METERED_API_KEY)%'
 
+    # ExpressTURN server credentials
+    app.express_turn.server: '%env(EXPRESS_TURN_SERVER)%'
+    app.express_turn.username: '%env(EXPRESS_TURN_USERNAME)%'
+    app.express_turn.password: '%env(EXPRESS_TURN_PASSWORD)%'
+
 services:
     # default configuration for services in *this* file
     _defaults:
